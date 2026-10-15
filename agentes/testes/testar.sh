@@ -190,7 +190,10 @@ s.serve_forever()
 EOF
   python3 -I "$tmp/api.py" >"$tmp/porta" &
   api_pid=$!
-  for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s "$tmp/porta" ] && break; sleep 0.2; done
+  # O python pode demorar alguns segundos para subir no CI.
+  i=0
+  while [ ! -s "$tmp/porta" ] && [ $i -lt 100 ]; do sleep 0.2; i=$((i + 1)); done
+  [ -s "$tmp/porta" ] || falha "API simulada não subiu"
   export GEMINI_API_URL="http://127.0.0.1:$(cat "$tmp/porta")/v1beta" NO_PROXY=127.0.0.1 no_proxy=127.0.0.1
   GEMINI_API_KEY=chave "$S/imagem.sh" "um mapa" "$tmp/img/a.png" >/dev/null 2>"$tmp/img.err" || sed 's/^/       /' "$tmp/img.err"
   checa "salva a imagem" test "$(cat "$tmp/img/a.png" 2>/dev/null)" = IMG1
