@@ -171,7 +171,7 @@ nega "troca AGENTES_DIR pelo caminho" grep -q AGENTES_DIR "$proj/.claude/agents/
 echo "imagem"
 if command -v python3 >/dev/null; then
   cat >"$tmp/api.py" <<'EOF'
-import base64, http.server, json, sys
+import base64, http.server, json, socketserver
 class H(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         corpo = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
@@ -184,16 +184,21 @@ class H(http.server.BaseHTTPRequestHandler):
         d = json.dumps(r).encode()
         self.send_response(200); self.end_headers(); self.wfile.write(d)
     def log_message(self, *a): pass
-s = http.server.HTTPServer(("127.0.0.1", 0), H)
+class Servidor(http.server.HTTPServer):
+    # O HTTPServer padrão faz uma busca de DNS reverso ao abrir a porta, que trava no macOS do CI.
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+s = Servidor(("127.0.0.1", 0), H)
 print(s.server_port, flush=True)
 s.serve_forever()
 EOF
-  python3 -I "$tmp/api.py" >"$tmp/porta" &
+  python3 -I "$tmp/api.py" >"$tmp/porta" 2>"$tmp/api.err" &
   api_pid=$!
   # O python pode demorar alguns segundos para subir no CI.
   i=0
   while [ ! -s "$tmp/porta" ] && [ $i -lt 100 ]; do sleep 0.2; i=$((i + 1)); done
-  [ -s "$tmp/porta" ] || falha "API simulada não subiu"
+  [ -s "$tmp/porta" ] || { falha "API simulada não subiu"; sed 's/^/       /' "$tmp/api.err"; }
   export GEMINI_API_URL="http://127.0.0.1:$(cat "$tmp/porta")/v1beta" NO_PROXY=127.0.0.1 no_proxy=127.0.0.1
   GEMINI_API_KEY=chave "$S/imagem.sh" "um mapa" "$tmp/img/a.png" >/dev/null 2>"$tmp/img.err" || sed 's/^/       /' "$tmp/img.err"
   checa "salva a imagem" test "$(cat "$tmp/img/a.png" 2>/dev/null)" = IMG1
