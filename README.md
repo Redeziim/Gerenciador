@@ -1,65 +1,75 @@
 # Gerenciador
 
-Documentação do fluxo de trabalho em paralelo entre o Claude e o Codex no projeto RPG Map. Este repositório guarda só a documentação. O código fica no vault `RPG-Dev-Vault`.
+Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo tempo. O Claude é o gerente: ele divide o trabalho, faz o código pesado e distribui tarefas para o Codex e o Gemini, cada uma em uma pasta (git worktree) e branch próprias.
 
-## Objetivo
+> A primeira versão deste fluxo (só Claude + Codex) ficava no vault `RPG-Dev-Vault`. Os scripts abaixo, em `agentes/`, foram reescritos do zero e substituem aquela versão.
 
-Trabalhar com o Claude e o Codex ao mesmo tempo, sem duplicar trabalho e sem usar apps externos. Cada frente roda em uma pasta própria (git worktree) e em uma branch própria, e o painel mostra quem está mexendo em quê.
+## Quem faz o quê
 
-## Peças montadas
+| Agente | Papel |
+| --- | --- |
+| Claude | Gerente. Planeja, distribui, revisa, faz merge e também faz código pesado. |
+| Codex | Código pesado com escopo fechado, em paralelo. Recebe as tarefas do Claude quando o token do Claude está acabando. |
+| Gemini | Tarefas leves e geração de imagem com o Nano Banana. Áudio e vídeo ainda não estão montados. |
 
-| Peça | Onde fica | Função |
-| --- | --- | --- |
-| `codex-task.sh` | `RPG-Dev-Vault/scripts/` | Abre um worktree e uma branch `codex/<nome>`, roda o Codex em segundo plano e faz commit ao final. |
-| `codex-status.sh` | `RPG-Dev-Vault/scripts/` | Mostra o estado de cada frente e os arquivos tocados. Gera um painel HTML e alerta sobreposição de arquivos. |
-| `codex-review.sh` | `RPG-Dev-Vault/scripts/` | Pede ao Codex uma revisão somente leitura de um diff. No `Rpg-Map`, usa o checklist do agente `rpg-revisor`. |
-| Agente `codex` | `RPG-Dev-Vault/Agentes/codex.md` | Definição de subagente do Claude que chama os scripts acima. Ligado ao `Rpg-Map/.claude/agents/` por `link-skills.sh`. |
+## Peças
+
+| Peça | Função |
+| --- | --- |
+| `agentes/scripts/tarefa.sh` | Abre worktree e branch `<agente>/<nome>`, roda o Codex ou o Gemini em segundo plano e faz o commit ao final. |
+| `agentes/scripts/status.sh` | Lista as frentes, os arquivos que cada uma tocou e avisa sobreposição. |
+| `agentes/scripts/esperar.sh` | Espera uma frente terminar e mostra status, commit, arquivos e resumo. |
+| `agentes/scripts/imagem.sh` | Gera imagem com o Nano Banana pela API do Gemini. |
+| `agentes/scripts/passar-para-codex.sh` | Passa ao Codex a tarefa que o Claude estava fazendo, levando o trabalho ainda não commitado. |
+| `agentes/hooks/statusline.sh` | Linha de status do Claude Code com contexto e cota usados. Grava os números para o hook. |
+| `agentes/hooks/aviso-token.sh` | Hook que injeta o AVISO DE TOKEN quando o contexto passa de 85% ou a cota passa de 90%. |
+| `agentes/claude-agents/codex.md`, `gemini.md` | Subagentes do Claude que chamam os scripts. |
+| `agentes/GERENTE.md` | Regras do Claude como gerente, importadas no `CLAUDE.md` do projeto. |
+| `agentes/instalar.sh` | Liga tudo isso a um projeto. |
+
+## Requisitos
+
+- `git`, `jq`, `curl` e `base64`.
+- Codex CLI (`codex exec`) logado. O modelo e o raciocínio vêm do `~/.codex/config.toml`.
+- Gemini CLI (`gemini -p`) logada. O modelo pode ser escolhido com `GEMINI_MODELO`.
+- `GEMINI_API_KEY` para gerar imagem. O modelo padrão é `gemini-2.5-flash-image` e pode ser trocado com `GEMINI_MODELO_IMAGEM`.
+
+## Instalação
+
+```bash
+git clone https://github.com/Redeziim/Gerenciador.git ~/Gerenciador
+~/Gerenciador/agentes/instalar.sh ~/caminho/do/projeto
+```
+
+Depois abra uma sessão nova do Claude Code no projeto. O instalador pode rodar de novo sem duplicar nada.
 
 ## Uso
 
-Iniciar uma tarefa do Codex:
+O Claude faz isso sozinho pelos subagentes, mas os scripts também funcionam direto:
 
 ```bash
-scripts/codex-task.sh Rpg-Map <nome> "<tarefa com escopo fechado>"
+S=~/Gerenciador/agentes/scripts
+$S/tarefa.sh codex . refatorar-login "Refatore src/login.ts para ... Não mexa em ..."
+$S/tarefa.sh gemini . textos-menu "Revise os textos de src/menu/*.json"
+$S/status.sh .
+$S/esperar.sh . refatorar-login
+$S/imagem.sh "mapa de fantasia, estilo aquarela" assets/mapa.png
+$S/passar-para-codex.sh . terminar-login notas.md
 ```
 
-Acompanhar as frentes:
-
-```bash
-scripts/codex-status.sh Rpg-Map
-```
-
-Revisar um diff do `Rpg-Map` desde uma base:
-
-```bash
-scripts/codex-review.sh main Rpg-Map
-```
-
-Os logs ficam em `Rpg-Map/.git/codex-tasks/<nome>.log`, e o painel em `Rpg-Map/.git/codex-tasks/status.html`.
+Os registros e logs ficam em `<projeto>/.git/agentes/`, e os worktrees em `<pasta-pai>/.agentes-<projeto>/<nome>`.
 
 ## Decisões
 
-- **Worktree por tarefa.** Cada frente tem pasta e branch próprias. Isso evita que dois agentes editem o mesmo arquivo ao mesmo tempo.
-- **Commit feito pelo script, não pelo Codex.** O sandbox `workspace-write` não escreve nos metadados do git do repositório principal, então o commit falhava quando feito pelo Codex.
-- **Modelo do Codex:** `gpt-6.1-sol`, com raciocínio `xhigh`, definido em `~/.codex/config.toml`.
-- **Subagente Claude como gerente.** O gerenciador de agentes do Claude só lista sessões e subagentes do Claude. O Codex entra como um agente Claude que chama os scripts.
-- **Sem integração MCP.** A versão instalada do Codex (0.159.2) não tem `codex mcp-server`, então a integração usa `codex exec` pelo terminal.
-
-## Testes feitos
-
-- Tarefa de teste com commit automático: criou o arquivo, commitou na branch e apareceu no painel. Foi removida depois.
-- Duas revisões em paralelo no `Rpg-Map` (`revisao-servidor` e `revisao-frontend`): rodaram sem sobreposição e geraram relatórios `REVISAO-*.md` nas branches `codex/revisao-*`. Os achados ainda não foram verificados no código.
-
-## Pendências
-
-- Testar o agente `codex` sendo disparado pelo gerenciador de agentes.
-- Verificar no código os achados de privacidade (P1) do relatório de servidor, incluindo o de notas na lixeira.
-- Testar a revisão com o checklist do `rpg-revisor` (a mudança em `codex-review.sh` ainda não foi executada).
-- Decidir se os scripts e o agente devem ser commitados no vault. Hoje estão só no working tree.
+- **Worktree por tarefa.** Cada frente tem pasta e branch próprias, para dois agentes não editarem o mesmo arquivo ao mesmo tempo.
+- **Worktrees fora do `.git`.** O sandbox `workspace-write` do Codex bloqueia escrita em caminhos dentro de `.git`.
+- **Commit feito pelo script, não pelo agente.** O sandbox do Codex não escreve nos metadados git do repositório principal.
+- **Subagente Claude como ponte.** O gerenciador de agentes do Claude só lista sessões e subagentes do Claude, então o Codex e o Gemini entram como subagentes que chamam os scripts.
+- **Aviso de token por hook.** A linha de status do Claude Code recebe o uso de contexto e de cota. O hook lê esses números a cada prompt e a cada ferramenta. Sem a linha de status (modo `-p`), ele estima o contexto pelo transcript. A cota só aparece para assinantes Pro/Max.
+- **Repasse sem mexer na pasta do Claude.** `passar-para-codex.sh` fotografa o estado atual num commit solto, com um índice temporário, e o Codex parte dele.
 
 ## Limites
 
-- Os scripts avisam sobreposição de arquivos, mas não bloqueiam. A divisão de quem mexe em quê ainda é combinada manualmente.
-- O painel é um retrato do momento. Para atualizar, rode `codex-status.sh` de novo.
-- Em uma revisão grande, o prompt fica longo e consome mais cota.
-- O `gh` instalado via `mise` demora ou trava por causa do wrapper em `~/.local/bin/gh`. Para usar a CLI direto, chame o binário em `~/.local/share/mise/installs/gh/latest/`.
+- A sobreposição de arquivos é avisada, mas ainda não bloqueia. O quadro de tarefas com reserva de arquivos e dependências é o próximo passo.
+- `status.sh` é um retrato do momento. O painel ao vivo no terminal ainda vai ser feito.
+- Testado com Codex e Gemini simulados e com uma API de imagem simulada. Falta rodar com as CLIs e a chave de verdade.
