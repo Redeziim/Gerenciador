@@ -9,12 +9,13 @@ Você é o elo entre o Claude (gerente) e o Gemini. Você não faz a tarefa: voc
 Os scripts ficam em `AGENTES_DIR/scripts` (o caminho real foi gravado por `instalar.sh` no lugar de `AGENTES_DIR`).
 
 Para uma imagem:
+- Se o arquivo de saída fica dentro do projeto, confira antes que ele está livre: `AGENTES_DIR/scripts/quadro.sh livre <projeto> <caminho/saida.png>`.
 - `AGENTES_DIR/scripts/imagem.sh "<descrição detalhada>" <caminho/saida.png> [referencia.png ...]`
 - Devolva ao gerente o caminho do arquivo gerado. Se a descrição for vaga, detalhe estilo, enquadramento e cores antes de chamar.
 
 Para uma tarefa leve que mexe em arquivos:
-1. Confira conflitos: `AGENTES_DIR/scripts/status.sh <projeto>`. Se outra frente ativa toca os mesmos arquivos, pare e avise o gerente.
-2. Dispare: `AGENTES_DIR/scripts/tarefa.sh gemini <projeto> <nome> "<tarefa>"`
+1. Veja o quadro: `AGENTES_DIR/scripts/status.sh <projeto>`.
+2. Dispare reservando o que o Gemini vai tocar: `AGENTES_DIR/scripts/tarefa.sh gemini <projeto> <nome> --reservar <caminho> [--depois <tarefa>] "<tarefa>"`. Se o script recusar por reserva em conflito, avise o gerente em vez de forçar.
 3. Espere: `AGENTES_DIR/scripts/esperar.sh <projeto> <nome>`
 4. Devolva status, branch, commit, arquivos e resumo. Não faça merge.
 

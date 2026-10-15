@@ -2,17 +2,20 @@
 # Passa para o Codex uma tarefa que o Claude estava fazendo, quando o token do Claude
 # está acabando. Leva junto o trabalho ainda não commitado, sem mexer na pasta do Claude.
 #
-# Uso: passar-para-codex.sh <pasta-de-trabalho> <nome> <notas.md>
+# Uso: passar-para-codex.sh <pasta-de-trabalho> <nome> <notas.md> [caminho-reservado...]
 #
 # <notas.md> deve dizer: objetivo, o que já foi feito, o que falta, arquivos envolvidos
 # e como verificar. O Codex continua numa branch codex/<nome> que parte do estado atual.
+# Os caminhos no final são reservados para o Codex (solte antes as reservas do Claude neles).
 
 source "$(dirname "$(readlink -f "$0")")/../lib/comum.sh"
 
-[ $# -eq 3 ] || { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ $# -ge 3 ] || { sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 precisa git jq
 
-pasta="$1"; nome="$2"; notas="$3"
+pasta="$1"; nome="$2"; notas="$3"; shift 3
+reservar=()
+for r in "$@"; do reservar+=(--reservar "$r"); done
 [ -f "$notas" ] || erro "arquivo de notas '$notas' não existe"
 nome_valido "$nome"
 
@@ -38,5 +41,6 @@ $(cat "$notas")
 EOF
 )"
 
-"$(dirname "$(readlink -f "$0")")/tarefa.sh" codex "$pasta" "$nome" --base "$base" "$tarefa"
+"$(dirname "$(readlink -f "$0")")/tarefa.sh" codex "$pasta" "$nome" --base "$base" \
+  ${reservar[@]+"${reservar[@]}"} "$tarefa"
 echo "o Claude não deve mais editar esses arquivos até a tarefa '$nome' terminar"

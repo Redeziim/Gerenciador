@@ -14,14 +14,14 @@ reg="$(dir_estado "$raiz")/tarefas/$2.json"
 limite="${3:-3600}"
 
 inicio=$SECONDS
-while [ "$(registro_get "$reg" status)" = rodando ]; do
+while ativa "$(registro_get "$reg" status)"; do
   pid="$(registro_get "$reg" pid)"
   if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
     registro_set "$reg" status interrompida
     break
   fi
   [ $(( SECONDS - inicio )) -lt "$limite" ] || { echo "tarefa '$2' ainda rodando após ${limite}s"; exit 2; }
-  sleep 5
+  sleep "${AGENTES_INTERVALO:-5}"
 done
 
 st="$(registro_get "$reg" status)"
@@ -30,7 +30,7 @@ echo "status:  $st"
 echo "branch:  $(registro_get "$reg" branch)"
 echo "commit:  $(registro_get "$reg" commit)"
 wt="$(registro_get "$reg" worktree)"
-if [ -d "$wt" ]; then
+if [ -n "$wt" ] && [ -d "$wt" ]; then
   echo "arquivos:"
   git -C "$wt" diff --stat "$(registro_get "$reg" base)" HEAD | sed 's/^/  /'
 fi
@@ -38,7 +38,7 @@ resumo="$(registro_get "$reg" resumo)"
 if [ -s "$resumo" ]; then
   echo "resumo:"
   tail -n 60 "$resumo" | sed 's/^/  /'
-else
+elif [ -n "$(registro_get "$reg" log)" ]; then
   echo "sem resumo; últimas linhas do log:"
   tail -n 30 "$(registro_get "$reg" log)" | sed 's/^/  /'
 fi

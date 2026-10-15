@@ -19,7 +19,7 @@ partes="$(jq -n --arg t "$descricao" '[{text:$t}]')"
 for ref in "$@"; do
   [ -f "$ref" ] || erro "imagem de referência '$ref' não existe"
   mime="$(file -b --mime-type "$ref" 2>/dev/null || echo image/png)"
-  partes="$(jq --arg m "$mime" --rawfile d <(base64 -w0 "$ref") \
+  partes="$(jq --arg m "$mime" --rawfile d <(base64 <"$ref" | tr -d '\n') \
     '. + [{inline_data:{mime_type:$m, data:$d}}]' <<<"$partes")"
 done
 
@@ -38,5 +38,6 @@ dados="$(jq -r '[.candidates[0].content.parts[] | (.inlineData // .inline_data) 
 [ -n "$dados" ] || erro "a resposta não trouxe imagem: $(jq -r '[.candidates[0].content.parts[].text // empty] | join(" ")' "$resposta")"
 
 mkdir -p "$(dirname "$saida")"
-base64 -d <<<"$dados" >"$saida"
+# "base64 -d" no Linux e "base64 -D" em macOS antigos.
+base64 -d <<<"$dados" >"$saida" 2>/dev/null || base64 -D <<<"$dados" >"$saida"
 echo "imagem salva em $saida"

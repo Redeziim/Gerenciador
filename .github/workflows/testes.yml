@@ -1,0 +1,37 @@
+name: testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            nome: linux
+          - os: macos-latest
+            nome: macos
+          # O macOS vem com o bash 3.2; esta linha garante que os scripts rodam nele.
+          - os: macos-latest
+            nome: macos-bash-3.2
+            bash32: true
+    name: ${{ matrix.nome }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Usar o bash do sistema (3.2)
+        if: matrix.bash32
+        run: |
+          mkdir -p "$HOME/bash32"
+          ln -s /bin/bash "$HOME/bash32/bash"
+          echo "$HOME/bash32" >>"$GITHUB_PATH"
+      - name: Versão do bash
+        run: bash --version | head -n1
+      - name: Sintaxe dos scripts
+        run: for f in agentes/scripts/*.sh agentes/hooks/*.sh agentes/lib/*.sh agentes/instalar.sh agentes/testes/*.sh; do bash -n "$f"; done
+      - name: Teste ponta a ponta
+        run: agentes/testes/testar.sh

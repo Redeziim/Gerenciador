@@ -16,20 +16,24 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 
 | Peça | Função |
 | --- | --- |
-| `agentes/scripts/tarefa.sh` | Abre worktree e branch `<agente>/<nome>`, roda o Codex ou o Gemini em segundo plano e faz o commit ao final. |
-| `agentes/scripts/status.sh` | Lista as frentes, os arquivos que cada uma tocou e avisa sobreposição. |
+| `agentes/scripts/tarefa.sh` | Abre worktree e branch `<agente>/<nome>`, reserva arquivos, espera dependências, roda o Codex ou o Gemini em segundo plano e faz o commit ao final. |
+| `agentes/scripts/quadro.sh` | Quadro de tarefas: o Claude reserva e solta os arquivos dele, confere se um caminho está livre e cancela frentes. |
+| `agentes/scripts/status.sh` | Mostra o quadro: tarefas, reservas, dependências, arquivos tocados e sobreposições. |
+| `agentes/scripts/painel.sh` | Painel ao vivo no terminal com todas as frentes e as últimas linhas do log de cada uma. |
 | `agentes/scripts/esperar.sh` | Espera uma frente terminar e mostra status, commit, arquivos e resumo. |
 | `agentes/scripts/imagem.sh` | Gera imagem com o Nano Banana pela API do Gemini. |
 | `agentes/scripts/passar-para-codex.sh` | Passa ao Codex a tarefa que o Claude estava fazendo, levando o trabalho ainda não commitado. |
 | `agentes/hooks/statusline.sh` | Linha de status do Claude Code com contexto e cota usados. Grava os números para o hook. |
 | `agentes/hooks/aviso-token.sh` | Hook que injeta o AVISO DE TOKEN quando o contexto passa de 85% ou a cota passa de 90%. |
+| `agentes/hooks/guarda-arquivos.sh` | Hook que impede o Claude de editar um arquivo reservado pelo Codex ou pelo Gemini, e registra no quadro o que o Claude edita. |
 | `agentes/claude-agents/codex.md`, `gemini.md` | Subagentes do Claude que chamam os scripts. |
 | `agentes/GERENTE.md` | Regras do Claude como gerente, importadas no `CLAUDE.md` do projeto. |
 | `agentes/instalar.sh` | Liga tudo isso a um projeto. |
+| `agentes/testes/testar.sh` | Teste ponta a ponta com agentes simulados. Roda no CI em Linux e macOS. |
 
 ## Requisitos
 
-- `git`, `jq`, `curl` e `base64`.
+- `bash`, `git`, `jq`, `curl` e `base64`. Funciona em Linux e macOS, inclusive com o bash 3.2 que vem no macOS.
 - Codex CLI (`codex exec`) logado. O modelo e o raciocínio vêm do `~/.codex/config.toml`.
 - Gemini CLI (`gemini -p`) logada. O modelo pode ser escolhido com `GEMINI_MODELO`.
 - `GEMINI_API_KEY` para gerar imagem. O modelo padrão é `gemini-2.5-flash-image` e pode ser trocado com `GEMINI_MODELO_IMAGEM`.
@@ -49,13 +53,35 @@ O Claude faz isso sozinho pelos subagentes, mas os scripts também funcionam dir
 
 ```bash
 S=~/Gerenciador/agentes/scripts
-$S/tarefa.sh codex . refatorar-login "Refatore src/login.ts para ... Não mexa em ..."
-$S/tarefa.sh gemini . textos-menu "Revise os textos de src/menu/*.json"
-$S/status.sh .
-$S/esperar.sh . refatorar-login
+
+# Codex na API, Gemini nos textos, cada um com seus arquivos reservados
+$S/tarefa.sh codex . api-login --reservar src/api/login "Crie o endpoint de login ..."
+$S/tarefa.sh gemini . textos-menu --reservar 'src/menu/*.json' "Revise os textos do menu"
+
+# A tela precisa da API pronta: espera e parte do resultado dela
+$S/tarefa.sh codex . tela-login --depois api-login --reservar src/tela/login "Crie a tela de login ..."
+
+# O Claude reserva o que ele mesmo vai mexer, e solta ao terminar
+$S/quadro.sh reservar . claude-rotas src/rotas.ts
+$S/quadro.sh liberar . claude-rotas
+
+$S/painel.sh .                 # painel ao vivo (Ctrl+C para sair)
+$S/painel.sh . --log api-login # log de uma tarefa
+$S/esperar.sh . api-login      # espera e mostra o resultado
+$S/quadro.sh cancelar . textos-menu
+
 $S/imagem.sh "mapa de fantasia, estilo aquarela" assets/mapa.png
-$S/passar-para-codex.sh . terminar-login notas.md
+$S/passar-para-codex.sh . terminar-login notas.md src/login
 ```
+
+Para ver o painel enquanto trabalha com o Claude, deixe `painel.sh` aberto em outra aba ou painel do terminal (no tmux, por exemplo).
+
+## Como os agentes não se atropelam
+
+- **Reserva.** Cada tarefa diz quais arquivos, pastas ou padrões vai tocar. Se outra tarefa ativa já reservou um deles, a nova tarefa não abre. As reservas são soltas quando a tarefa termina, falha ou é cancelada.
+- **Dependência.** Com `--depois`, a tarefa fica `aguardando`, começa sozinha quando a outra termina e já parte do resultado dela. Se a outra falhar, ela fica `bloqueada`.
+- **Guarda do Claude.** Um hook bloqueia o Claude de editar arquivos reservados pelo Codex ou pelo Gemini, e os worktrees deles. O que o Claude edita aparece no painel como "sessão do Claude".
+- **Aviso.** O quadro marca arquivos tocados fora da reserva e arquivos tocados por mais de uma tarefa.
 
 Os registros e logs ficam em `<projeto>/.git/agentes/`, e os worktrees em `<pasta-pai>/.agentes-<projeto>/<nome>`.
 
@@ -67,9 +93,12 @@ Os registros e logs ficam em `<projeto>/.git/agentes/`, e os worktrees em `<past
 - **Subagente Claude como ponte.** O gerenciador de agentes do Claude só lista sessões e subagentes do Claude, então o Codex e o Gemini entram como subagentes que chamam os scripts.
 - **Aviso de token por hook.** A linha de status do Claude Code recebe o uso de contexto e de cota. O hook lê esses números a cada prompt e a cada ferramenta. Sem a linha de status (modo `-p`), ele estima o contexto pelo transcript. A cota só aparece para assinantes Pro/Max.
 - **Repasse sem mexer na pasta do Claude.** `passar-para-codex.sh` fotografa o estado atual num commit solto, com um índice temporário, e o Codex parte dele.
+- **Quadro em arquivos JSON dentro do `.git`.** Fica fora dos commits, não precisa de servidor e é lido por todos os scripts. Uma trava simples (`mkdir`) evita que duas tarefas reservem o mesmo arquivo ao mesmo tempo.
 
 ## Limites
 
-- A sobreposição de arquivos é avisada, mas ainda não bloqueia. O quadro de tarefas com reserva de arquivos e dependências é o próximo passo.
-- `status.sh` é um retrato do momento. O painel ao vivo no terminal ainda vai ser feito.
-- Testado com Codex e Gemini simulados e com uma API de imagem simulada. Falta rodar com as CLIs e a chave de verdade.
+- O Codex e o Gemini recebem as reservas no prompt, mas nada impede fisicamente que eles toquem outro arquivo no worktree deles. Quando isso acontece, o quadro mostra "fora da reserva" e você decide no merge.
+- A guarda do Claude só vale para as ferramentas de edição. Um comando de terminal que escreve num arquivo reservado passa.
+- As tarefas do Claude criadas com `quadro.sh reservar` ficam ativas até `quadro.sh liberar`. Se o Claude esquecer, as reservas continuam valendo.
+- Áudio e vídeo ainda não estão montados.
+- Testado com Codex, Gemini e API de imagem simulados (`agentes/testes/testar.sh`). Falta rodar com as CLIs e a chave de verdade.
