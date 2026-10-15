@@ -192,9 +192,9 @@ EOF
   api_pid=$!
   for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s "$tmp/porta" ] && break; sleep 0.2; done
   export GEMINI_API_URL="http://127.0.0.1:$(cat "$tmp/porta")/v1beta" NO_PROXY=127.0.0.1 no_proxy=127.0.0.1
-  GEMINI_API_KEY=chave "$S/imagem.sh" "um mapa" "$tmp/img/a.png" >/dev/null 2>&1
+  GEMINI_API_KEY=chave "$S/imagem.sh" "um mapa" "$tmp/img/a.png" >/dev/null 2>"$tmp/img.err" || sed 's/^/       /' "$tmp/img.err"
   checa "salva a imagem" test "$(cat "$tmp/img/a.png" 2>/dev/null)" = IMG1
-  GEMINI_API_KEY=chave "$S/imagem.sh" "com referência" "$tmp/img/b.png" "$tmp/img/a.png" >/dev/null 2>&1
+  GEMINI_API_KEY=chave "$S/imagem.sh" "com referência" "$tmp/img/b.png" "$tmp/img/a.png" >/dev/null 2>"$tmp/img.err" || sed 's/^/       /' "$tmp/img.err"
   checa "manda a imagem de referência" test "$(cat "$tmp/img/b.png" 2>/dev/null)" = IMG2
   nega "erro da API vira erro" env GEMINI_API_KEY=errada "$S/imagem.sh" "x" "$tmp/img/c.png"
   kill "$api_pid" 2>/dev/null
