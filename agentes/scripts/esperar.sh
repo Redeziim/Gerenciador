@@ -15,11 +15,8 @@ limite="${3:-3600}"
 
 inicio=$SECONDS
 while ativa "$(registro_get "$reg" status)"; do
-  pid="$(registro_get "$reg" pid)"
-  if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
-    registro_set "$reg" status interrompida
-    break
-  fi
+  conferir_processo "$reg"
+  ativa "$(registro_get "$reg" status)" || break
   [ $(( SECONDS - inicio )) -lt "$limite" ] || { echo "tarefa '$2' ainda rodando após ${limite}s"; exit 2; }
   sleep "${AGENTES_INTERVALO:-5}"
 done

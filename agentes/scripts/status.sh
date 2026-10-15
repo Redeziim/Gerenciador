@@ -28,14 +28,7 @@ regs=()
 for r in "$estado"/tarefas/*.json; do [ -f "$r" ] && regs+=("$r"); done
 
 # Uma tarefa ativa cujo processo morreu é marcada como interrompida.
-for reg in ${regs[@]+"${regs[@]}"}; do
-  if ativa "$(registro_get "$reg" status)"; then
-    pid="$(registro_get "$reg" pid)"
-    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
-      registro_set "$reg" status interrompida
-    fi
-  fi
-done
+for reg in ${regs[@]+"${regs[@]}"}; do conferir_processo "$reg"; done
 
 # Arquivos que a tarefa mudou: diff do worktree para o Codex e o Gemini,
 # e o que o hook registrou para o Claude.

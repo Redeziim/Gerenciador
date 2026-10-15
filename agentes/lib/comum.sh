@@ -129,3 +129,16 @@ travar() {
   done
 }
 destravar() { rm -rf "$1.trava"; }
+
+# Marca como interrompida uma tarefa ativa cujo processo morreu. O status é lido de novo
+# depois de ver o processo morto: o executor grava o status final antes de sair, então
+# uma tarefa que acabou de terminar não é confundida com uma interrompida.
+conferir_processo() {
+  local reg="$1" pid
+  ativa "$(registro_get "$reg" status)" || return 0
+  pid="$(registro_get "$reg" pid)"
+  [ -n "$pid" ] || return 0
+  kill -0 "$pid" 2>/dev/null && return 0
+  ativa "$(registro_get "$reg" status)" && registro_set "$reg" status interrompida
+  return 0
+}
