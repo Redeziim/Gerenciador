@@ -9,7 +9,7 @@ S="$aqui/scripts"
 H="$aqui/hooks"
 tmp="$(mktemp -d)"
 tmp="$(cd "$tmp" && pwd -P)"
-trap 'rm -rf "$tmp"' EXIT
+trap '[ -n "${MANTER:-}" ] || rm -rf "$tmp"' EXIT
 
 export AGENTES_INTERVALO=0.2
 export AGENTES_ESTADO="$tmp/estado-claude"
@@ -204,11 +204,77 @@ EOF
   checa "salva a imagem" test "$(cat "$tmp/img/a.png" 2>/dev/null)" = IMG1
   GEMINI_API_KEY=chave "$S/imagem.sh" "com referência" "$tmp/img/b.png" "$tmp/img/a.png" >/dev/null 2>"$tmp/img.err" || sed 's/^/       /' "$tmp/img.err"
   checa "manda a imagem de referência" test "$(cat "$tmp/img/b.png" 2>/dev/null)" = IMG2
+  PEDIDO="pela variável" GEMINI_API_KEY=chave "$S/imagem.sh" - "$tmp/img/d.png" >/dev/null 2>&1
+  checa "descrição da imagem por PEDIDO" test "$(cat "$tmp/img/d.png" 2>/dev/null)" = IMG1
   nega "erro da API vira erro" env GEMINI_API_KEY=errada "$S/imagem.sh" "x" "$tmp/img/c.png"
   kill "$api_pid" 2>/dev/null
 else
   echo "  pulado (sem python3)"
 fi
+
+echo "celular (OpenClaw)"
+export AGENTES_PROJETOS="$tmp/projetos"
+cat >"$tmp/bin/claude" <<'EOF'
+#!/usr/bin/env bash
+while [ $# -gt 0 ]; do case "$1" in -p) p="$2"; shift 2 ;; *) echo "$1" >>"$CLAUDE_ARGS_LOG"; shift ;; esac; done
+printf '%s\n' "$p" >"$CLAUDE_PROMPT_LOG"
+printf '%s' "${PEDIDO:-}" >"$CLAUDE_PROMPT_LOG.pedido"
+AGENTE=claude exec agente-simulado "$PWD" "$p" ""
+EOF
+chmod +x "$tmp/bin/claude"
+export CLAUDE_ARGS_LOG="$tmp/claude.args" CLAUDE_PROMPT_LOG="$tmp/claude.prompt"
+checa "registra apelido" "$S/projetos.sh" adicionar rpg "$proj"
+"$S/projetos.sh" adicionar rpg "$proj" >/dev/null
+checa "não duplica apelido" test "$(grep -c '^rpg=' "$AGENTES_PROJETOS")" = 1
+checa "lista apelidos" grep -q rpg <<<"$("$S/projetos.sh" listar)"
+checa "status pelo apelido" "$S/status.sh" rpg
+nega "apelido desconhecido dá erro" "$S/status.sh" naoexiste
+nega "apelido inválido é recusado" "$S/projetos.sh" adicionar 'a;b' "$proj"
+"$S/tarefa.sh" gemini rpg via-entrada --arquivo - >/dev/null <<'FIM'
+CRIAR docs/entrada.txt
+FIM
+PEDIDO="CRIAR docs/variavel.txt" "$S/tarefa.sh" gemini rpg via-variavel --arquivo - >/dev/null
+espera via-entrada; espera via-variavel
+checa "tarefa lida da entrada" git -C "$proj" cat-file -e gemini/via-entrada:docs/entrada.txt
+checa "tarefa lida de PEDIDO" git -C "$proj" cat-file -e gemini/via-variavel:docs/variavel.txt
+
+PEDIDO='CRIAR claude/feito.txt
+DORMIR 1
+texto perigoso: $(touch "$HOME/../hackeado") `touch hackeado2`' "$S/pedir-ao-claude.sh" rpg pedido-um >/dev/null
+nega "recusa um segundo pedido ao mesmo tempo" "$S/pedir-ao-claude.sh" rpg pedido-dois <<<"x"
+espera pedido-um
+checa "pedido ao claude concluiu" test "$(campo pedido-um status)" = concluida
+checa "claude rodou na pasta do projeto" test -f "$proj/claude/feito.txt"
+checa "resumo do pedido gravado" grep -q "Resumo do claude" "$(campo pedido-um resumo)"
+checa "pedido chega inteiro ao claude" grep -qF '$(touch "$HOME/../hackeado")' "$tmp/claude.prompt"
+nega "texto do pedido não vira comando" test -e "$proj/hackeado2"
+checa "PEDIDO não passa para o claude" test -z "$(cat "$tmp/claude.prompt.pedido")"
+checa "claude roda com permissão para os scripts" grep -qF "Bash($S/tarefa.sh:*)" "$tmp/claude.args"
+checa "esperar mostra o pedido" grep -q "status:  concluida" <<<"$("$S/esperar.sh" rpg pedido-um 5)"
+nega "pedido vazio é recusado" "$S/pedir-ao-claude.sh" rpg <<<"   "
+checa "pedido também pela entrada" "$S/pedir-ao-claude.sh" rpg pedido-entrada <<<"CRIAR claude/entrada.txt"
+espera pedido-entrada
+"$S/pedir-ao-claude.sh" rpg pedido-falho >/dev/null <<<"FALHAR"
+espera pedido-falho
+checa "pedido com erro fica falhou" test "$(campo pedido-falho status)" = falhou
+"$S/pedir-ao-claude.sh" rpg pedido-longo >/dev/null <<<"DORMIR 30"
+sleep 0.5
+"$S/quadro.sh" cancelar rpg pedido-longo >/dev/null
+checa "cancela um pedido" test "$(campo pedido-longo status)" = cancelada
+cel="$("$S/status.sh" rpg --celular)"; printf "%s\n" "$cel" >"$tmp/cel.txt"
+checa "status curto para o celular" grep -q "^- pedido-um (claude): concluida" <<<"$cel"
+nega "status curto sem cores nem lista de arquivos" grep -qe $'\033' -e '^    ' "$tmp/cel.txt"
+
+skills="$tmp/skills"
+OPENCLAW_SKILLS="$skills" "$aqui/instalar-openclaw.sh" >/dev/null 2>&1
+skill="$skills/gerenciador-agentes/SKILL.md"
+checa "instala a skill do OpenClaw" test -f "$skill"
+checa "skill com nome" grep -qx "name: gerenciador-agentes" "$skill"
+checa "descrição curta (até 160)" test "$(sed -n 's/^description: //p' "$skill" | awk '{print length}')" -le 160
+nega "skill sem AGENTES_DIR" grep -q AGENTES_DIR "$skill"
+faltando=""
+for sc in $(grep -o "$aqui/scripts/[a-z-]*\.sh" "$skill" | sort -u); do [ -x "$sc" ] || faltando="$faltando $sc"; done
+checa "skill só cita scripts que existem" test -z "$faltando"
 
 echo
 if [ "$falhas" -eq 0 ]; then echo "tudo certo"; else echo "$falhas falha(s)"; exit 1; fi

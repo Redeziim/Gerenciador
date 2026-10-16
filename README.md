@@ -22,6 +22,10 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 | `agentes/scripts/painel.sh` | Painel ao vivo no terminal com todas as frentes e as últimas linhas do log de cada uma. |
 | `agentes/scripts/esperar.sh` | Espera uma frente terminar e mostra status, commit, arquivos e resumo. |
 | `agentes/scripts/imagem.sh` | Gera imagem com o Nano Banana pela API do Gemini. |
+| `agentes/scripts/pedir-ao-claude.sh` | Manda um pedido para o Claude gerente rodar sozinho no projeto (`claude -p`), sem terminal aberto. É o que o celular usa. |
+| `agentes/scripts/projetos.sh` | Apelidos de projeto (`rpg` em vez do caminho inteiro). Todos os scripts aceitam o apelido. |
+| `agentes/openclaw/` | Skill do OpenClaw para controlar tudo pelo celular, pelo Telegram. |
+| `agentes/instalar-openclaw.sh` | Instala a skill no OpenClaw e registra o apelido do projeto. |
 | `agentes/scripts/passar-para-codex.sh` | Passa ao Codex a tarefa que o Claude estava fazendo, levando o trabalho ainda não commitado. |
 | `agentes/hooks/statusline.sh` | Linha de status do Claude Code com contexto e cota usados. Grava os números para o hook. |
 | `agentes/hooks/aviso-token.sh` | Hook que injeta o AVISO DE TOKEN quando o contexto passa de 85% ou a cota passa de 90%. |
@@ -76,6 +80,74 @@ $S/passar-para-codex.sh . terminar-login notas.md src/login
 
 Para ver o painel enquanto trabalha com o Claude, deixe `painel.sh` aberto em outra aba ou painel do terminal (no tmux, por exemplo).
 
+## Pelo celular (OpenClaw + Telegram)
+
+O [OpenClaw](https://docs.openclaw.ai) roda no computador (Linux, macOS ou WSL no Windows) e conversa com você pelo Telegram. A skill `gerenciador-agentes` ensina o OpenClaw a usar os scripts daqui: você escreve no celular, ele roda o script certo e responde.
+
+### Ligar (uma vez, no computador)
+
+1. Instale o OpenClaw (precisa do Node 24.16 ou mais novo) e deixe ele rodando como serviço:
+   ```bash
+   curl -fsSL https://openclaw.ai/install.sh | bash
+   openclaw onboard --install-daemon
+   ```
+   No onboarding, escolha o modelo que o OpenClaw vai usar para conversar.
+2. Crie o bot: no Telegram, fale com `@BotFather`, mande `/newbot` e copie o token.
+3. Ligue o bot ao OpenClaw:
+   ```bash
+   openclaw channels add --channel telegram --token <token-do-bot>
+   ```
+4. Mande qualquer mensagem para o seu bot. Ele responde com um código de pareamento. Aprove:
+   ```bash
+   openclaw pairing approve telegram <código>
+   ```
+   O código vale por uma hora. Depois disso, só a sua conta fala com o bot.
+5. Instale a skill e dê um apelido ao projeto (o projeto já precisa ter passado pelo `instalar.sh`):
+   ```bash
+   ~/Gerenciador/agentes/instalar-openclaw.sh rpg ~/projetos/rpg
+   openclaw gateway restart
+   ```
+   Para mais projetos: `~/Gerenciador/agentes/scripts/projetos.sh adicionar <apelido> <pasta>`.
+6. Confira: `openclaw skills info gerenciador-agentes` deve mostrar `Ready`, e `openclaw channels status --probe` deve mostrar o Telegram ligado.
+
+O computador precisa ficar ligado, com o OpenClaw rodando, para o bot responder.
+
+### Usar (no celular)
+
+Escreva para o bot em português normal. Exemplos:
+
+| Mensagem | O que acontece |
+| --- | --- |
+| `status rpg` | Uma linha por tarefa: quem está fazendo o quê e há quanto tempo. |
+| `pede ao Claude: arruma o bug do inventário no rpg` | O Claude gerente roda sozinho no projeto, divide o trabalho e chama o Codex ou o Gemini se precisar. O bot devolve o nome do pedido. |
+| `resultado pedido-1016-143205` | Status, arquivos mudados e o resumo de quem fez. |
+| `manda o Codex criar a tela de login no rpg, só em src/login` | Tarefa direto para o Codex, com a pasta reservada. |
+| `manda o Gemini revisar os textos do README do rpg` | Tarefa leve direto para o Gemini. |
+| `faz uma imagem de um mapa de masmorra para o rpg` | Gera com o Nano Banana e manda a imagem no chat (precisa de `GEMINI_API_KEY`). |
+| `cancela login-google` | O bot confirma antes e para a tarefa. |
+| `quais projetos?` | Lista os apelidos. |
+
+Merge, push e apagar branches ficam para o computador: o bot não faz isso.
+
+### Segurança
+
+- O texto que você escreve vai para os scripts na variável `PEDIDO`, nunca dentro do comando, para uma mensagem não virar comando no seu computador.
+- Só a conta pareada fala com o bot. Não troque o `dmPolicy` para aberto.
+- O Claude chamado pelo celular roda com `--permission-mode acceptEdits` e só pode rodar os scripts dos agentes e `git status/diff/log`. Para mudar isso, defina `AGENTES_CLAUDE_ARGS`.
+- Por padrão o OpenClaw roda comandos sem pedir confirmação. Para ele só poder rodar os scripts daqui:
+  ```bash
+  openclaw approvals allowlist add "$HOME/Gerenciador/agentes/scripts/*.sh"
+  openclaw config set tools.exec.mode allowlist
+  openclaw gateway restart
+  ```
+  Isso vale para todo o OpenClaw, não só para esta skill.
+
+### Se algo não funcionar
+
+- O bot não responde: `openclaw gateway status` e `openclaw doctor`.
+- "comando 'claude' (ou 'codex', 'gemini') não encontrado": o serviço do OpenClaw roda com um `PATH` mínimo. Veja onde a CLI está com `command -v claude` e acrescente a pasta dela, por exemplo `openclaw config set tools.exec.pathPrepend '["/home/voce/.local/bin"]'`, depois `openclaw gateway restart`.
+- "o pedido ... ainda está rodando": só um pedido ao Claude por projeto de cada vez. Espere ou cancele.
+
 ## Como os agentes não se atropelam
 
 - **Reserva.** Cada tarefa diz quais arquivos, pastas ou padrões vai tocar. Se outra tarefa ativa já reservou um deles, a nova tarefa não abre. As reservas são soltas quando a tarefa termina, falha ou é cancelada.
@@ -101,4 +173,5 @@ Os registros e logs ficam em `<projeto>/.git/agentes/`, e os worktrees em `<past
 - A guarda do Claude só vale para as ferramentas de edição. Um comando de terminal que escreve num arquivo reservado passa.
 - As tarefas do Claude criadas com `quadro.sh reservar` ficam ativas até `quadro.sh liberar`. Se o Claude esquecer, as reservas continuam valendo.
 - Áudio e vídeo ainda não estão montados.
-- Testado com Codex, Gemini e API de imagem simulados (`agentes/testes/testar.sh`). Falta rodar com as CLIs e a chave de verdade.
+- Pelo celular, o pedido ao Claude roda até o fim sem poder perguntar nada; o Claude escolhe o caminho mais seguro e diz o que ficou pendente.
+- Testado com Codex, Gemini e API de imagem simulados (`agentes/testes/testar.sh`). A skill do OpenClaw foi carregada num OpenClaw de verdade (`Ready`), mas a conversa pelo Telegram não foi testada aqui. Falta rodar com as CLIs, o bot e a chave de verdade.

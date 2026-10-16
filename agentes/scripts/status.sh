@@ -2,14 +2,15 @@
 # Mostra o quadro de tarefas: quem está fazendo o quê, reservas, dependências,
 # arquivos tocados e avisos de sobreposição.
 #
-# Uso: status.sh <projeto> [--json | --painel] [--todas]
-#   --json    saída em JSON
-#   --painel  formato do painel ao vivo (tempo, cores e últimas linhas do log)
-#   --todas   inclui tarefas encerradas há mais de 12 horas
+# Uso: status.sh <projeto> [--json | --painel | --celular] [--todas]
+#   --json     saída em JSON
+#   --painel   formato do painel ao vivo (tempo, cores e últimas linhas do log)
+#   --celular  uma linha curta por tarefa, sem cores, para mandar pelo Telegram
+#   --todas    inclui tarefas encerradas há mais de 12 horas
 
 source "$(dirname "$(readlink -f "$0")")/../lib/comum.sh"
 
-[ $# -ge 1 ] || { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ $# -ge 1 ] || { sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 precisa git jq
 
 raiz="$(raiz_projeto "$1")"
@@ -20,6 +21,7 @@ for a in "$@"; do
   case "$a" in
     --json) modo=json ;;
     --painel) modo=painel ;;
+    --celular) modo=celular ;;
     --todas) todas=1 ;;
   esac
 done
@@ -87,6 +89,9 @@ duracao() {
     | if . < 60 then "\(.)s" elif . < 3600 then "\(./60|floor)min" else "\(./3600|floor)h\(.%3600/60|floor)min" end'
 }
 
+if [ "$modo" = celular ]; then
+  echo "$(basename "$raiz") às $(date '+%H:%M')"
+fi
 if [ "$modo" = painel ]; then
   echo "${negrito}Agentes em $(basename "$raiz")${normal}  ${fraco}$(date '+%H:%M:%S')${normal}"
   echo
@@ -104,6 +109,12 @@ for reg in ${regs[@]+"${regs[@]}"}; do
   st="$(registro_get "$reg" status)"
   titulo="$(registro_get "$reg" titulo)"
   c="$(cor_status "$st")"
+
+  if [ "$modo" = celular ]; then
+    t="$(printf '%s' "$titulo" | cut -c1-60)"
+    echo "- $nome ($agente): $st, $(duracao "$(registro_get "$reg" inicio)" "$(registro_get "$reg" fim)")${t:+. $t}"
+    continue
+  fi
 
   if [ "$modo" = painel ]; then
     printf '%s%-22s%s %s%-7s%s %s%-12s%s %6s  %s\n' "$negrito" "$nome" "$normal" "$ciano" "$agente" "$normal" \

@@ -11,10 +11,27 @@ precisa() {
   done
 }
 
-# Caminho absoluto do repositório principal do projeto (aceita um worktree também).
+# Arquivo com os apelidos de projeto (uma linha "apelido=caminho"), usados pelo celular.
+arquivo_projetos() { echo "${AGENTES_PROJETOS:-${XDG_CONFIG_HOME:-$HOME/.config}/agentes/projetos}"; }
+
+# Caminho de um apelido de projeto, ou vazio se não existir.
+caminho_apelido() {
+  local arq linha
+  arq="$(arquivo_projetos)"
+  [ -f "$arq" ] || return 0
+  while IFS= read -r linha; do
+    [ "${linha%%=*}" = "$1" ] && { echo "${linha#*=}"; return 0; }
+  done <"$arq"
+}
+
+# Caminho absoluto do repositório principal do projeto (aceita um worktree ou um apelido).
 raiz_projeto() {
-  local dir="$1"
-  [ -d "$dir" ] || erro "pasta '$dir' não existe"
+  local dir="$1" ap
+  if [ ! -d "$dir" ]; then
+    ap="$(caminho_apelido "$dir")"
+    [ -n "$ap" ] && dir="$ap"
+  fi
+  [ -d "$dir" ] || erro "pasta '$dir' não existe (nem como apelido em $(arquivo_projetos))"
   local comum
   comum="$(git -C "$dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
     || erro "'$dir' não é um repositório git"
@@ -38,6 +55,14 @@ dir_worktrees() {
 
 nome_valido() {
   [[ "$1" =~ ^[a-z0-9][a-z0-9-]{0,40}$ ]] || erro "nome '$1' inválido (use letras minúsculas, números e hífen)"
+}
+
+# Texto de um pedido vindo do celular: da variável PEDIDO ou da entrada, nunca da linha
+# de comando, para o texto do usuário não ser interpretado pelo shell.
+texto_pedido() {
+  if [ -n "${PEDIDO:-}" ]; then printf '%s\n' "$PEDIDO"; return 0; fi
+  [ -t 0 ] && erro "mande o texto na variável PEDIDO ou pela entrada, não pela linha de comando"
+  cat
 }
 
 agora() { date -u +%Y-%m-%dT%H:%M:%SZ; }

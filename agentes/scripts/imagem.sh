@@ -2,16 +2,18 @@
 # Gera uma imagem com o Nano Banana (modelo de imagem do Gemini) pela API.
 #
 # Uso: imagem.sh "<descrição>" <saida.png> [imagem-de-referencia.png ...]
+#      Com "-" no lugar da descrição, ela vem da variável PEDIDO ou da entrada.
 #
 # Precisa de GEMINI_API_KEY. O modelo pode ser trocado com GEMINI_MODELO_IMAGEM.
 
 source "$(dirname "$(readlink -f "$0")")/../lib/comum.sh"
 
-[ $# -ge 2 ] || { sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ $# -ge 2 ] || { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 precisa curl jq base64
 [ -n "${GEMINI_API_KEY:-}" ] || erro "defina GEMINI_API_KEY"
 
 descricao="$1"; saida="$2"; shift 2
+if [ "$descricao" = - ]; then descricao="$(texto_pedido)"; unset PEDIDO; fi
 modelo="${GEMINI_MODELO_IMAGEM:-gemini-2.5-flash-image}"
 api="${GEMINI_API_URL:-https://generativelanguage.googleapis.com/v1beta}"
 

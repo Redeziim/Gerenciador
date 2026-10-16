@@ -5,6 +5,7 @@
 # Uso:
 #   tarefa.sh <codex|gemini> <projeto> <nome> [opções] "<tarefa>"
 #   tarefa.sh <codex|gemini> <projeto> <nome> [opções] --arquivo <tarefa.md>
+#   tarefa.sh <codex|gemini> <projeto> <nome> [opções] --arquivo -   (lê de $PEDIDO ou da entrada)
 # Opções:
 #   --reservar <caminho>  arquivo, pasta ou padrão que só esta tarefa pode mexer (repetível).
 #                         Se outra tarefa ativa já reservou, a tarefa não é aberta.
@@ -97,7 +98,7 @@ if [ "${1:-}" = "--executar" ]; then
   if [ "$status" = 0 ]; then encerrar concluida; else encerrar falhou; fi
 fi
 
-[ $# -ge 4 ] || { sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ $# -ge 4 ] || { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 precisa git jq
 
 agente="$1"; projeto="$2"; nome="$3"; shift 3
@@ -116,7 +117,10 @@ while [ $# -gt 0 ]; do
     --reservar) reservas+=("$2"); shift 2 ;;
     --depois) depois+=("$2"); shift 2 ;;
     --forcar) forcar=1; shift ;;
-    --arquivo) [ -f "$2" ] || erro "arquivo '$2' não existe"; tarefa="$(cat "$2")"; shift 2 ;;
+    --arquivo)
+      if [ "$2" = - ]; then tarefa="$(texto_pedido)"; unset PEDIDO
+      else [ -f "$2" ] || erro "arquivo '$2' não existe"; tarefa="$(cat "$2")"; fi
+      shift 2 ;;
     *) tarefa="$1"; shift ;;
   esac
 done
