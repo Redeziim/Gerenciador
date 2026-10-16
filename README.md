@@ -33,7 +33,7 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 
 ## Requisitos
 
-- `bash`, `git`, `jq`, `curl` e `base64`. Funciona em Linux e macOS, inclusive com o bash 3.2 que vem no macOS.
+- `bash`, `git`, `jq`, `curl` e `base64`. Funciona em Linux e macOS, inclusive com o bash 3.2 que vem no macOS. No Windows, rode tudo dentro do WSL (Ubuntu), com o projeto guardado dentro do Ubuntu e não em `/mnt/c`.
 - Codex CLI (`codex exec`) logado. O modelo e o raciocínio vêm do `~/.codex/config.toml`.
 - Gemini CLI (`gemini -p`) logada. O modelo pode ser escolhido com `GEMINI_MODELO`.
 - `GEMINI_API_KEY` para gerar imagem. O modelo padrão é `gemini-2.5-flash-image` e pode ser trocado com `GEMINI_MODELO_IMAGEM`.
