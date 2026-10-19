@@ -44,12 +44,52 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 
 ## Instalação
 
+Passo a passo no Ubuntu ou Debian (no Windows, dentro do Ubuntu do WSL; veja a nota no fim):
+
 ```bash
+# 1. Programas básicos e Node 24 (o OpenClaw precisa do 24)
+sudo apt update && sudo apt install -y git jq curl gh
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# 2. Claude Code, Codex e Gemini
+sudo npm install -g --allow-scripts=@anthropic-ai/claude-code,@github/keytar \
+  @anthropic-ai/claude-code @openai/codex @google/gemini-cli
+
+# 3. Chave do Gemini (crie em https://aistudio.google.com/apikey). Cole quando pedir; ela não aparece na tela.
+read -rsp "Cole a chave: " K && echo "export GEMINI_API_KEY='$K'" >> ~/.bashrc && unset K
+source ~/.bashrc
+echo ${#GEMINI_API_KEY}   # tem que dar entre 40 e 60
+
+# 4. Logins
+claude          # entra na conta; depois saia com /exit
+codex login
+gemini          # escolha "Use Gemini API Key"
+gh auth login   # GitHub.com, HTTPS, Y, Login with a web browser
+
+# 5. Gerenciador e projeto
 git clone https://github.com/Redeziim/Gerenciador.git ~/Gerenciador
-~/Gerenciador/agentes/instalar.sh ~/caminho/do/projeto
+mkdir -p ~/projetos && gh repo clone Redeziim/Rpg-Map ~/projetos/Rpg-Map
+~/Gerenciador/agentes/instalar.sh ~/projetos/Rpg-Map
+~/Gerenciador/agentes/testes/testar.sh   # a última linha tem que ser "tudo certo"
 ```
 
-Depois abra uma sessão nova do Claude Code no projeto. O instalador pode rodar de novo sem duplicar nada.
+Depois abra o Claude Code no projeto (`cd ~/projetos/Rpg-Map && claude`) e, se ele abrir no Haiku, troque com `/model`. O instalador pode rodar de novo sem duplicar nada. No Fedora, troque o `apt` por `dnf` e use `https://rpm.nodesource.com/setup_24.x`.
+
+**No Windows:** no PowerShell como administrador, rode `wsl --install -d Ubuntu`, reinicie e abra **Ubuntu** pelo menu Iniciar. O terminal pode abrir em `/mnt/c/WINDOWS/system32`: rode `cd ~` antes de tudo. Para abrir outro terminal do Ubuntu, use o menu Iniciar ou `wsl ~` num PowerShell.
+
+### Problemas na instalação
+
+| Mensagem ou sintoma | O que fazer |
+| --- | --- |
+| `npm warn install-scripts ... not yet covered by allowScripts` | Faltou o `--allow-scripts` do passo 2. Sem ele o Claude Code não termina de instalar. |
+| `EACCES: permission denied` no npm | Faltou o `sudo`. Não precisa atualizar o npm quando ele sugerir. |
+| Gemini: `This client is no longer supported for Gemini Code Assist for individuals` | O login com conta Google pessoal acabou. Use `Use Gemini API Key`, com a chave do passo 3. |
+| `unexpected EOF while looking for matching` ao abrir o terminal | A linha da chave no `~/.bashrc` ficou quebrada. Limpe com `sed -i '/GEMINI_API_KEY/d; /^AQ\./d' ~/.bashrc`, confira com `bash -n ~/.bashrc && echo ok` e refaça o passo 3. |
+| `echo ${#GEMINI_API_KEY}` dá centenas | Entrou texto a mais com a chave. Limpe como acima e copie a chave pelo botão de copiar do AI Studio. |
+| `fatal: Authentication failed` no `git clone` | O repositório é privado. Rode `gh auth login` e clone de novo. |
+| A chave apareceu num chat ou print | Apague em aistudio.google.com/apikey e crie outra. |
+| Ubuntu não aparece no menu Iniciar (Windows) | `wsl --install -d Ubuntu` no PowerShell (Admin) e reinicie. Confira com `wsl -l -v`. |
 
 ## Uso
 
