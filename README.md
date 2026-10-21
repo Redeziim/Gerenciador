@@ -12,7 +12,7 @@ Com o Gerenciador você usa vários assistentes de IA de programação ao mesmo 
 
 **Você fala com um só. Ele reparte o trabalho. Ninguém sobrescreve ninguém.**
 
-https://github.com/user-attachments/assets/1f5bcfbb-870a-48b1-a86e-52160eaa8e6e
+https://github.com/user-attachments/assets/cf8feabb-28ad-4134-b3b3-23aba276b145
 
 ## Como funciona
 
