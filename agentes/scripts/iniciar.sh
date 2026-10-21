@@ -48,8 +48,11 @@ if ! tmux has-session -t "$sessao" 2>/dev/null; then
   # Instala ou atualiza (o instalar.sh pode rodar de novo): assim o projeto sempre usa as
   # instruções e os hooks mais novos deste repositório.
   "$aqui/instalar.sh" "$raiz" >/dev/null
+  # O Claude só começa depois do focus-events ligado (senão ele avisa "tmux focus-events off").
   # Quando o Claude sai, a sessão inteira fecha (o painel não fica sozinho).
-  tmux new-session -d -s "$sessao" -c "$raiz" \
+  tmux new-session -d -s "$sessao" -c "$raiz"
+  tmux set-option -g focus-events on >/dev/null
+  tmux respawn-pane -k -t "$sessao" -c "$raiz" \
     "$claude_cmd; tmux kill-session -t '$sessao' 2>/dev/null"
   tmux split-window -h -l 40% -t "$sessao" -c "$raiz" "'$aqui/scripts/painel.sh' '$raiz'"
   tmux select-pane -t "$sessao" -L
