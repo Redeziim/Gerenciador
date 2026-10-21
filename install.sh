@@ -212,8 +212,8 @@ else
         gh repo clone Redeziim/Gerenciador "$destino" || true
       fi
       if [ ! -d "$destino/.git" ]; then
-        aviso 'O repositório pode ser privado.'
-        erro 'Faça gh auth login ou use uma conta com acesso e tente novamente.'
+        aviso "não foi possível clonar $repo"
+        erro 'Confira a conexão e tente de novo (se for um fork privado, faça gh auth login).'
       fi
     fi
   fi

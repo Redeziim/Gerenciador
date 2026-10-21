@@ -6,7 +6,6 @@
   <img src="https://img.shields.io/badge/plataformas-Linux%20%C2%B7%20macOS%20%C2%B7%20Windows%20(WSL)-cfffcf?style=flat&labelColor=15181e" alt="plataformas: Linux%20%C2%B7%20macOS%20%C2%B7%20Windows%20(WSL)">
   <img src="https://img.shields.io/badge/gerente-Opus-cfffcf?style=flat&labelColor=15181e" alt="gerente: Opus">
   <img src="https://img.shields.io/badge/executam-Sonnet%20%2B%20Codex%20sol-cfffcf?style=flat&labelColor=15181e" alt="executam: Sonnet%20%2B%20Codex%20sol">
-  <img src="https://img.shields.io/badge/estado-reposit%C3%B3rio%20privado-d97757?style=flat&labelColor=15181e" alt="estado: reposit%C3%B3rio%20privado">
 </p>
 
 Com o Gerenciador você usa vários assistentes de IA de programação ao mesmo tempo, no mesmo projeto. Você conversa com um só: o **gerente**, um Claude (Opus). Ele divide o pedido em tarefas e entrega cada uma a um agente, que trabalha numa cópia separada do projeto. No fim, o gerente confere e junta tudo.
@@ -39,8 +38,6 @@ https://github.com/user-attachments/assets/1f5bcfbb-870a-48b1-a86e-52160eaa8e6e
 | **3. Abrir** | Na pasta de um projeto que já seja um repositório git (por exemplo `~/projetos/meu-projeto`), rode `gerenciador`. No Windows, tudo roda dentro do **WSL** (um Linux dentro do Windows); guarde o projeto no Ubuntu (`~/projetos/...`), não em `/mnt/c`. |
 
 O instalador confere o que falta (git, tmux, jq, Node...), instala com a sua permissão, baixa o Gerenciador em `~/.gerenciador` e cria o comando `gerenciador`. Pode rodar de novo a qualquer hora: ele só atualiza. Opções: `--sim` (aceita as perguntas com padrão "sim"), `--sem-clis` (não instala Claude/Codex/Gemini) e `--teste` (só mostra o que faria).
-
-> O repositório está **privado** por enquanto, então os links acima só funcionam depois que ele for público. Enquanto isso, com o `gh` instalado e logado (`gh auth login`): `gh api repos/Redeziim/Gerenciador/contents/install.sh -H 'Accept: application/vnd.github.raw' | bash`, ou clone e rode `./install.sh`.
 
 Ao abrir, o terminal se divide em dois com o **tmux** (um programa que divide o terminal em painéis): à esquerda o Claude gerente, onde você conversa; à direita o painel, que mostra ao vivo o que cada agente faz. Numa sessão nova ele pergunta o **modelo** e o **nível** do gerente (o nível é o quanto a IA "pensa" antes de responder: mais alto é melhor e mais lento). Enter mantém o último usado; o sugerido é `opus` com `high`.
 
@@ -176,7 +173,7 @@ Se o bot não responde, rode `openclaw gateway status` e `openclaw doctor`. Se a
 | `gerenciador: command not found` | Abra um terminal novo. Se persistir, rode `~/.gerenciador/agentes/scripts/iniciar.sh` direto. |
 | `EACCES: permission denied` no npm | Faltou o `sudo`. |
 | `npm warn install-scripts ... allowScripts` | O Claude Code não terminou de instalar. Rode o instalador de novo. |
-| `fatal: Authentication failed` ao baixar | O repositório é privado. Rode `gh auth login` e tente de novo. |
+| `fatal: unable to access` ou falha ao baixar | Confira a conexão e tente de novo. Se estiver usando um fork privado, rode `gh auth login`. |
 | Gemini: `no longer supported for Gemini Code Assist` | Entre com chave de API (`Use Gemini API Key`), criada em aistudio.google.com/apikey. Guarde-a em `~/.config/agentes/env` como `export GEMINI_API_KEY='...'`. |
 | Ubuntu não aparece no menu Iniciar (Windows) | PowerShell como administrador: `wsl --install -d Ubuntu`, reinicie. Confira com `wsl -l -v`. |
 | O terminal abre em `/mnt/c/WINDOWS/system32` | Rode `cd ~` antes de tudo. |

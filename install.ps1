@@ -54,7 +54,7 @@ if ! curl -fsSL '__URL__' -o "$arquivo"; then
     fi
 fi
 if [ ! -s "$arquivo" ]; then
-    printf '%s\n' 'erro: não foi possível baixar install.sh. O repositório pode ser privado.' 'Faça gh auth login dentro do WSL ou use uma conta com acesso.' >&2
+    printf '%s\n' 'erro: não foi possível baixar install.sh. Confira a conexão e tente de novo.' 'Se estiver usando um fork privado, faça gh auth login dentro do WSL.' >&2
     exit 1
 fi
 bash "$arquivo" __OPTIONS__

@@ -224,7 +224,10 @@ checa "painel mostra o agente e a tarefa" grep -q 'codex · pesado' <<<"$tela"
 checa "painel mostra o resultado e o commit" grep -q 'commit ' <<<"$tela"
 checa "painel mostra os arquivos mexidos" grep -q 'Mexendo em  src/back/api.txt' <<<"$tela"
 checa "painel mostra o raciocínio escolhido" grep -q 'raciocínio low' <<<"$tela"
-checa "painel cabe na largura" test "$(awk '{ if (length($0) > m) m = length($0) } END { print m }' <<<"$tela")" -le 60
+# Conta caracteres, não bytes: tira os bytes de continuação do UTF-8 antes do awk
+# (o mawk e o awk do macOS contam bytes, e o painel usa ✶, ⎿, · e −).
+largura_max="$(printf '%s\n' "$tela" | LC_ALL=C tr -d '\200-\277' | LC_ALL=C awk '{ if (length($0) > m) m = length($0) } END { print m + 0 }')"
+checa "painel cabe na largura" test "$largura_max" -le 60
 checa "esconde tarefas antigas sem --todas" test "$("$S/status.sh" "$proj" --json | jq length)" -gt 0
 
 echo "instalador"
