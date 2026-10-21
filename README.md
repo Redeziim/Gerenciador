@@ -39,7 +39,7 @@ https://github.com/user-attachments/assets/cf8feabb-28ad-4134-b3b3-23aba276b145
 
 O instalador confere o que falta (git, tmux, jq, Node...), instala com a sua permissão, baixa o Gerenciador em `~/.gerenciador` e cria o comando `gerenciador`. Pode rodar de novo a qualquer hora: ele só atualiza. Opções: `--sim` (aceita as perguntas com padrão "sim"), `--sem-clis` (não instala Claude/Codex/Gemini) e `--teste` (só mostra o que faria).
 
-Ao abrir, o terminal se divide em dois com o **tmux** (um programa que divide o terminal em painéis): à esquerda o Claude gerente, onde você conversa; à direita o painel, que mostra ao vivo o que cada agente faz. Numa sessão nova ele pergunta o **modelo** e o **nível** do gerente (o nível é o quanto a IA "pensa" antes de responder: mais alto é melhor e mais lento). Enter mantém o último usado; o sugerido é `opus` com `high`.
+Ao abrir, o terminal se divide em dois com o **tmux** (um programa que divide o terminal em painéis): à esquerda o Claude gerente, onde você conversa; à direita o painel, que mostra ao vivo o que cada agente faz. Na primeira vez em cada projeto ele pergunta o **modelo** e o **nível** do gerente (o nível é o quanto a IA "pensa" antes de responder: mais alto é melhor e mais lento); o sugerido é `opus` com `high`. A escolha fica salva e as próximas aberturas não perguntam mais. Para trocar: `/gerente` dentro do Claude, ou `gerenciador --perguntar`.
 
 Exemplo de pedido: *"Crie uma tela de login e corrija os textos do menu."* O gerente divide em duas tarefas (por exemplo, `tela-login` para o Codex e `textos-menu` para o Sonnet), diz numa linha quem faz cada uma e dispara. Quando terminam, ele revisa e junta.
 

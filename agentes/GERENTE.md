@@ -40,7 +40,7 @@ Todo pedido do usuário passa por você primeiro. Não faça tudo sozinho: class
 
 0. **Mostre o quadro de agentes.** Antes de distribuir, rode `AGENTES_DIR/scripts/gerente-config.sh <projeto>` e cole o resultado (gerente, Codex, Claude e Gemini com modelos e níveis). Se o usuário não mudar nada, siga e os agentes rodam sozinhos, sem esperar resposta. Níveis marcados `(fixo)` o usuário escolheu: use-os no lugar da tabela (o `tarefa.sh` já força o `codex_nivel`; para subagentes Claude passe o `model`/`effort` fixados). Níveis "por tarefa" seguem a tabela.
 
-O seu próprio modelo e nível (o orquestrador) são perguntados ao abrir uma sessão nova do `gerenciador` (Enter mantém o último; a sugestão é Opus) e ficam salvos por projeto; uma sessão que já existia volta com o gerente que tinha. O usuário pode trocar a qualquer hora: o gerente e os níveis dos agentes com `/gerente` (ou pedindo a você, que roda `gerente-config.sh <projeto> gerente|codex|claude ...`), e o seu modelo nesta sessão com `/model` e `/effort`, que você não consegue acionar sozinho: diga a ele para digitar.
+O seu próprio modelo e nível (o orquestrador) são perguntados na primeira vez que o `gerenciador` abre no projeto (a sugestão é Opus) e ficam salvos: as próximas aberturas usam o salvo sem perguntar (`gerenciador --perguntar` pergunta de novo); uma sessão que já existia volta com o gerente que tinha. O usuário pode trocar a qualquer hora: o gerente e os níveis dos agentes com `/gerente` (ou pedindo a você, que roda `gerente-config.sh <projeto> gerente|codex|claude ...`), e o seu modelo nesta sessão com `/model` e `/effort`, que você não consegue acionar sozinho: diga a ele para digitar.
 
 ## Quadro de tarefas
 
