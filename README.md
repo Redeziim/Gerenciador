@@ -30,7 +30,7 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 | `agentes/scripts/passar-para-codex.sh` | Passa ao Codex a tarefa que o Claude estava fazendo, levando o trabalho ainda não commitado. |
 | `agentes/scripts/codex-config.sh` | Mostra ou troca o modelo e o raciocínio padrão do Codex (`listar` mostra os que existem). É o que os comandos `/codex` usam. |
 | `agentes/scripts/uso-codex.sh` | Mostra o uso do Codex (janela de 5 horas e semana) no painel. |
-| `agentes/scripts/interativo.sh` | Abre uma sessão interativa do Codex ou do Gemini num worktree próprio, no mesmo quadro. |
+| `agentes/scripts/interativo.sh` | Painel interativo (o `painel.sh` abre este por padrão): escolhe a tarefa, cancela, limpa do quadro e vê o log. |
 | `agentes/scripts/atualizar-agentes.sh` | Confere (e instala) atualizações do Claude Code, do Codex e do Gemini. O hook de início de sessão usa `avisar`. |
 | `agentes/claude-commands/` | Comandos de barra `/codex` e `/atualizar-agentes`; o `instalar.sh` gera também um `/codex-<modelo>` por modelo. |
 | `agentes/hooks/statusline.sh` | Linha de status do Claude Code com contexto e cota usados. Grava os números para o hook. |
