@@ -2,8 +2,6 @@
 
 Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo tempo. O Claude é o gerente: ele divide o trabalho, faz o código pesado e distribui tarefas para o Codex e o Gemini, cada uma em uma pasta (git worktree) e branch próprias.
 
-> A primeira versão deste fluxo (só Claude + Codex) ficava no vault `RPG-Dev-Vault`. Os scripts abaixo, em `agentes/`, foram reescritos do zero e substituem aquela versão.
-
 ## Quem faz o quê
 
 | Agente | Papel |
@@ -28,7 +26,7 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 | `agentes/scripts/esperar.sh` | Espera uma frente terminar e mostra status, commit, arquivos e resumo. |
 | `agentes/scripts/imagem.sh` | Gera imagem com o Nano Banana pela API do Gemini. |
 | `agentes/scripts/pedir-ao-claude.sh` | Manda um pedido para o Claude gerente rodar sozinho no projeto (`claude -p`), sem terminal aberto. É o que o celular usa. |
-| `agentes/scripts/projetos.sh` | Apelidos de projeto (`rpg` em vez do caminho inteiro). Todos os scripts aceitam o apelido. |
+| `agentes/scripts/projetos.sh` | Apelidos de projeto (`demo` em vez do caminho inteiro). Todos os scripts aceitam o apelido. |
 | `agentes/openclaw/` | Skill do OpenClaw para controlar tudo pelo celular, pelo Telegram. |
 | `agentes/instalar-openclaw.sh` | Instala a skill no OpenClaw e registra o apelido do projeto. |
 | `agentes/scripts/passar-para-codex.sh` | Passa ao Codex a tarefa que o Claude estava fazendo, levando o trabalho ainda não commitado. |
@@ -82,8 +80,8 @@ gh auth login   # GitHub.com, HTTPS, Y, Login with a web browser
 
 # 5. Gerenciador e projeto
 git clone https://github.com/Redeziim/Gerenciador.git ~/Gerenciador
-mkdir -p ~/projetos && gh repo clone Redeziim/Rpg-Map ~/projetos/Rpg-Map
-~/Gerenciador/agentes/instalar.sh ~/projetos/Rpg-Map
+mkdir -p ~/projetos && gh repo clone Redeziim/Rpg-Map ~/projetos/meu-projeto
+~/Gerenciador/agentes/instalar.sh ~/projetos/meu-projeto
 ~/Gerenciador/agentes/testes/testar.sh   # a última linha tem que ser "tudo certo"
 ```
 
@@ -91,7 +89,7 @@ Depois abra o Claude Code no projeto e, se ele abrir no Haiku, troque com `/mode
 
 ```bash
 gerenciador                  # no projeto em que você está
-gerenciador ~/projetos/Rpg-Map   # ou uma pasta / apelido de projeto
+gerenciador ~/projetos/meu-projeto   # ou uma pasta / apelido de projeto
 ```
 
 Ele usa o `tmux`: Claude à esquerda, painel à direita (o mouse funciona para trocar de lado). `/exit` no Claude fecha tudo; `Ctrl+b` e depois `d` deixa a sessão rodando em segundo plano, e o mesmo comando volta para ela. Se o projeto ainda não tem o gerenciador, ele instala sozinho. O atalho é criado pelo `instalar.sh` em `~/.local/bin`; se `gerenciador` não for encontrado, rode `~/Gerenciador/agentes/scripts/iniciar.sh` direto. O instalador pode rodar de novo sem duplicar nada. No Fedora, troque o `apt` por `dnf` e use `https://rpm.nodesource.com/setup_24.x`.
@@ -118,7 +116,7 @@ Os dois primeiros apareceram em uso real no Linux e foram reproduzidos e corrigi
 | Sintoma | Causa | O que fazer |
 | --- | --- | --- |
 | Tarefa do Gemini fica `falhou` na hora; o log tem `Gemini CLI is not running in a trusted directory` e `código 55`. | Todo worktree é uma pasta nova, e o Gemini CLI recusa pastas não confiáveis em modo sem terminal (e ainda desliga o `--yolo`). | Corrigido: o `tarefa.sh` roda o Gemini com `GEMINI_CLI_TRUST_WORKSPACE=true`. Atualize o repositório (`git pull`). |
-| `erro: defina GEMINI_API_KEY` no `imagem.sh`, embora a chave esteja no `~/.bashrc`. | O `.bashrc` (Ubuntu, Omarchy e outros) sai logo no começo em shells não interativos, que são os do Claude Code, do OpenClaw e dos scripts em segundo plano. A linha `export` nunca é lida. | Corrigido: os scripts leem `~/.config/agentes/env`. Mova a chave: `mkdir -p ~/.config/agentes && grep '^export GEMINI_API_KEY' ~/.bashrc > ~/.config/agentes/env && chmod 600 ~/.config/agentes/env`. Depois pode apagar a linha antiga do `~/.bashrc`. |
+| `erro: defina GEMINI_API_KEY` no `imagem.sh`, embora a chave esteja no `~/.bashrc`. | O `.bashrc` sai logo no começo em shells não interativos, que são os do Claude Code, do OpenClaw e dos scripts em segundo plano. A linha `export` nunca é lida. | Corrigido: os scripts leem `~/.config/agentes/env`. Mova a chave: `mkdir -p ~/.config/agentes && grep '^export GEMINI_API_KEY' ~/.bashrc > ~/.config/agentes/env && chmod 600 ~/.config/agentes/env`. Depois pode apagar a linha antiga do `~/.bashrc`. |
 | `bad interpreter: /usr/bin/env: 'bash\r'` ou `$'\r': command not found` (Windows). | O repositório foi clonado pelo Git do Windows, que troca `\n` por `\r\n` nos scripts. | O `.gitattributes` força `\n` nos `.sh`. Clone de novo **dentro do Ubuntu** (`git clone` no terminal do WSL). Para consertar um clone antigo: `find ~/Gerenciador -name '*.sh' -exec sed -i 's/\r$//' {} +`. |
 | `codex`, `gemini` ou `claude` "não encontrado", ou abre o programa do Windows no WSL. | O WSL herda o `PATH` do Windows, e `command -v` acha o `.cmd`/`.exe` de fora, ou a CLI foi instalada só no Windows. | Instale as CLIs dentro do Ubuntu (passo 2). `command -v codex` tem que começar com `/usr` ou `/home`, nunca com `/mnt/c`. |
 
@@ -164,7 +162,7 @@ Abra com `agentes/scripts/ui.sh <projeto>` e visite `http://127.0.0.1:8765`. A i
 ### Como ler o painel
 
 ```
-✻ Agentes · Rpg-Map                               10:40:27
+✻ Agentes · meu-projeto                               10:40:27
   1 rodando · 1 aguardando · 3 concluída(s)
 
 ✶ codex · api-login                                    2min       ← ● animada = trabalhando
@@ -225,7 +223,7 @@ Para atualizar, o Codex e o Gemini precisam do prefixo do npm numa pasta sua, po
 
 ### Vários projetos
 
-`gerenciador <pasta>` funciona em qualquer repositório git (por exemplo `gerenciador ~/RPG-Dev-Vault`). Cada projeto tem o próprio quadro, em `<projeto>/.git/agentes/`, e a própria sessão do tmux. Toda vez que abre uma sessão nova o atalho reinstala o gerenciador no projeto, então ele sempre usa as instruções mais novas deste repositório. Se o projeto já tiver subagentes próprios chamados `codex` ou `gemini`, o instalador escreve por cima; o `RPG-Dev-Vault` foi ajustado para o `link-skills.sh` não desfazer isso.
+`gerenciador <pasta>` funciona em qualquer repositório git (por exemplo `gerenciador ~/outro-projeto`). Cada projeto tem o próprio quadro, em `<projeto>/.git/agentes/`, e a própria sessão do tmux. Toda vez que abre uma sessão nova o atalho reinstala o gerenciador no projeto, então ele sempre usa as instruções mais novas deste repositório. Se o projeto já tiver subagentes próprios chamados `codex` ou `gemini`, o instalador escreve por cima;
 
 ## Pelo celular (OpenClaw + Telegram)
 
@@ -251,7 +249,7 @@ O [OpenClaw](https://docs.openclaw.ai) roda no computador (Linux, macOS ou WSL n
    O código vale por uma hora. Depois disso, só a sua conta fala com o bot.
 5. Instale a skill e dê um apelido ao projeto (o projeto já precisa ter passado pelo `instalar.sh`):
    ```bash
-   ~/Gerenciador/agentes/instalar-openclaw.sh rpg ~/projetos/rpg
+   ~/Gerenciador/agentes/instalar-openclaw.sh demo ~/projetos/meu-projeto
    openclaw gateway restart
    ```
    Para mais projetos: `~/Gerenciador/agentes/scripts/projetos.sh adicionar <apelido> <pasta>`.
@@ -265,12 +263,12 @@ Escreva para o bot em português normal. Exemplos:
 
 | Mensagem | O que acontece |
 | --- | --- |
-| `status rpg` | Uma linha por tarefa: quem está fazendo o quê e há quanto tempo. |
-| `pede ao Claude: arruma o bug do inventário no rpg` | O Claude gerente roda sozinho no projeto, divide o trabalho e chama o Codex ou o Gemini se precisar. O bot devolve o nome do pedido. |
+| `status demo` | Uma linha por tarefa: quem está fazendo o quê e há quanto tempo. |
+| `pede ao Claude: arruma o bug do login no demo` | O Claude gerente roda sozinho no projeto, divide o trabalho e chama o Codex ou o Gemini se precisar. O bot devolve o nome do pedido. |
 | `resultado pedido-1016-143205` | Status, arquivos mudados e o resumo de quem fez. |
-| `manda o Codex criar a tela de login no rpg, só em src/login` | Tarefa direto para o Codex, com a pasta reservada. |
-| `manda o Gemini revisar os textos do README do rpg` | Tarefa leve direto para o Gemini. |
-| `faz uma imagem de um mapa de masmorra para o rpg` | Gera com o Nano Banana e manda a imagem no chat (precisa de `GEMINI_API_KEY`). |
+| `manda o Codex criar a tela de login no demo, só em src/login` | Tarefa direto para o Codex, com a pasta reservada. |
+| `manda o Gemini revisar os textos do README do demo` | Tarefa leve direto para o Gemini. |
+| `faz uma imagem de um mapa de masmorra para o demo` | Gera com o Nano Banana e manda a imagem no chat (precisa de `GEMINI_API_KEY`). |
 | `cancela login-google` | O bot confirma antes e para a tarefa. |
 | `quais projetos?` | Lista os apelidos. |
 
@@ -292,7 +290,7 @@ Merge, push e apagar branches ficam para o computador: o bot não faz isso.
 ### Se algo não funcionar
 
 - O bot não responde: `openclaw gateway status` e `openclaw doctor`.
-- "comando 'claude' (ou 'codex', 'gemini') não encontrado": o serviço do OpenClaw roda com um `PATH` mínimo. Veja onde a CLI está com `command -v claude` e acrescente a pasta dela, por exemplo `openclaw config set tools.exec.pathPrepend '["/home/voce/.local/bin"]'`, depois `openclaw gateway restart`.
+- "comando 'claude' (ou 'codex', 'gemini') não encontrado": o serviço do OpenClaw roda com um `PATH` mínimo. Veja onde a CLI está com `command -v claude` e acrescente a pasta dela, por exemplo `openclaw config set tools.exec.pathPrepend '["/home/SEU-USUARIO/.local/bin"]'`, depois `openclaw gateway restart`.
 - "o pedido ... ainda está rodando": só um pedido ao Claude por projeto de cada vez. Espere ou cancele.
 
 ## Como os agentes não se atropelam

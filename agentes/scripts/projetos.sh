@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apelidos de projeto, para pedir pelo celular "status rpg" em vez do caminho inteiro.
+# Apelidos de projeto, para pedir pelo celular "status demo" em vez do caminho inteiro.
 #
 # Uso:
 #   projetos.sh adicionar <apelido> <caminho>

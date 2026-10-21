@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Liga o gerenciador de agentes ao OpenClaw, para controlar tudo pelo celular (Telegram).
 #   - copia a skill "gerenciador-agentes" para a pasta de skills do OpenClaw
-#   - opcional: registra um apelido de projeto, para escrever "status rpg" no celular
+#   - opcional: registra um apelido de projeto, para escrever "status demo" no celular
 # Pode rodar de novo sem duplicar nada.
 #
 # Uso: instalar-openclaw.sh [<apelido> <projeto>]
@@ -40,5 +40,5 @@ Próximos passos (só na primeira vez):
   3. Mande qualquer mensagem para o seu bot. Ele responde com um código.
   4. openclaw pairing approve telegram <código>
   5. openclaw gateway restart
-Depois é só escrever para o bot, por exemplo: status rpg
+Depois é só escrever para o bot, por exemplo: status demo
 FIM

@@ -273,25 +273,25 @@ AGENTE=claude exec agente-simulado "$PWD" "$p" ""
 EOF
 chmod +x "$tmp/bin/claude"
 export CLAUDE_ARGS_LOG="$tmp/claude.args" CLAUDE_PROMPT_LOG="$tmp/claude.prompt"
-checa "registra apelido" "$S/projetos.sh" adicionar rpg "$proj"
-"$S/projetos.sh" adicionar rpg "$proj" >/dev/null
-checa "não duplica apelido" test "$(grep -c '^rpg=' "$AGENTES_PROJETOS")" = 1
-checa "lista apelidos" grep -q rpg <<<"$("$S/projetos.sh" listar)"
-checa "status pelo apelido" "$S/status.sh" rpg
+checa "registra apelido" "$S/projetos.sh" adicionar demo "$proj"
+"$S/projetos.sh" adicionar demo "$proj" >/dev/null
+checa "não duplica apelido" test "$(grep -c '^demo=' "$AGENTES_PROJETOS")" = 1
+checa "lista apelidos" grep -q demo <<<"$("$S/projetos.sh" listar)"
+checa "status pelo apelido" "$S/status.sh" demo
 nega "apelido desconhecido dá erro" "$S/status.sh" naoexiste
 nega "apelido inválido é recusado" "$S/projetos.sh" adicionar 'a;b' "$proj"
-"$S/tarefa.sh" gemini rpg via-entrada --arquivo - >/dev/null <<'FIM'
+"$S/tarefa.sh" gemini demo via-entrada --arquivo - >/dev/null <<'FIM'
 CRIAR docs/entrada.txt
 FIM
-PEDIDO="CRIAR docs/variavel.txt" "$S/tarefa.sh" gemini rpg via-variavel --arquivo - >/dev/null
+PEDIDO="CRIAR docs/variavel.txt" "$S/tarefa.sh" gemini demo via-variavel --arquivo - >/dev/null
 espera via-entrada; espera via-variavel
 checa "tarefa lida da entrada" git -C "$proj" cat-file -e gemini/via-entrada:docs/entrada.txt
 checa "tarefa lida de PEDIDO" git -C "$proj" cat-file -e gemini/via-variavel:docs/variavel.txt
 
 PEDIDO='CRIAR claude/feito.txt
 DORMIR 1
-texto perigoso: $(touch "$HOME/../hackeado") `touch hackeado2`' "$S/pedir-ao-claude.sh" rpg pedido-um >/dev/null
-nega "recusa um segundo pedido ao mesmo tempo" "$S/pedir-ao-claude.sh" rpg pedido-dois <<<"x"
+texto perigoso: $(touch "$HOME/../hackeado") `touch hackeado2`' "$S/pedir-ao-claude.sh" demo pedido-um >/dev/null
+nega "recusa um segundo pedido ao mesmo tempo" "$S/pedir-ao-claude.sh" demo pedido-dois <<<"x"
 espera pedido-um
 checa "pedido ao claude concluiu" test "$(campo pedido-um status)" = concluida
 checa "claude rodou na pasta do projeto" test -f "$proj/claude/feito.txt"
@@ -300,18 +300,18 @@ checa "pedido chega inteiro ao claude" grep -qF '$(touch "$HOME/../hackeado")' "
 nega "texto do pedido não vira comando" test -e "$proj/hackeado2"
 checa "PEDIDO não passa para o claude" test -z "$(cat "$tmp/claude.prompt.pedido")"
 checa "claude roda com permissão para os scripts" grep -qF "Bash($S/tarefa.sh:*)" "$tmp/claude.args"
-checa "esperar mostra o pedido" grep -q "status:  concluida" <<<"$("$S/esperar.sh" rpg pedido-um 5)"
-nega "pedido vazio é recusado" "$S/pedir-ao-claude.sh" rpg <<<"   "
-checa "pedido também pela entrada" "$S/pedir-ao-claude.sh" rpg pedido-entrada <<<"CRIAR claude/entrada.txt"
+checa "esperar mostra o pedido" grep -q "status:  concluida" <<<"$("$S/esperar.sh" demo pedido-um 5)"
+nega "pedido vazio é recusado" "$S/pedir-ao-claude.sh" demo <<<"   "
+checa "pedido também pela entrada" "$S/pedir-ao-claude.sh" demo pedido-entrada <<<"CRIAR claude/entrada.txt"
 espera pedido-entrada
-"$S/pedir-ao-claude.sh" rpg pedido-falho >/dev/null <<<"FALHAR"
+"$S/pedir-ao-claude.sh" demo pedido-falho >/dev/null <<<"FALHAR"
 espera pedido-falho
 checa "pedido com erro fica falhou" test "$(campo pedido-falho status)" = falhou
-"$S/pedir-ao-claude.sh" rpg pedido-longo >/dev/null <<<"DORMIR 30"
+"$S/pedir-ao-claude.sh" demo pedido-longo >/dev/null <<<"DORMIR 30"
 sleep 0.5
-"$S/quadro.sh" cancelar rpg pedido-longo >/dev/null
+"$S/quadro.sh" cancelar demo pedido-longo >/dev/null
 checa "cancela um pedido" test "$(campo pedido-longo status)" = cancelada
-cel="$("$S/status.sh" rpg --celular)"; printf "%s\n" "$cel" >"$tmp/cel.txt"
+cel="$("$S/status.sh" demo --celular)"; printf "%s\n" "$cel" >"$tmp/cel.txt"
 checa "status curto para o celular" grep -q "^- pedido-um (claude): concluida" <<<"$cel"
 nega "status curto sem cores nem lista de arquivos" grep -qe $'\033' -e '^    ' "$tmp/cel.txt"
 
