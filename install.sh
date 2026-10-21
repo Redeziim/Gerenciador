@@ -67,7 +67,7 @@ versao_node_ok() {
 }
 
 faltantes=''
-for programa in git jq curl tmux python3 npm; do
+for programa in git jq curl tmux npm; do
   if ! command -v "$programa" >/dev/null 2>&1; then faltantes="$faltantes $programa"; fi
 done
 if ! versao_node_ok; then faltantes="$faltantes nodejs"; fi
@@ -124,12 +124,11 @@ instalar_pacotes() {
     apt-get) privilegio apt-get update; privilegio apt-get install -y $pacotes ;;
     dnf) privilegio dnf install -y $pacotes ;;
     pacman)
-      pacotes="$(printf ' %s ' "$pacotes" | sed 's/ python3 / python /')"
       privilegio pacman -Sy --needed --noconfirm $pacotes ;;
     zypper) privilegio zypper --non-interactive install $pacotes ;;
     brew)
-      # Homebrew fornece npm junto com node, e chama python3 de python.
-      pacotes="$(printf ' %s ' "$pacotes" | sed 's/ nodejs / node /; s/ npm / node /; s/ python3 / python /')"
+      # Homebrew fornece npm junto com node.
+      pacotes="$(printf ' %s ' "$pacotes" | sed 's/ nodejs / node /; s/ npm / node /')"
       brew install $pacotes ;;
     *) erro "gerenciador de pacotes desconhecido" ;;
   esac
@@ -146,7 +145,7 @@ if [ -n "$faltantes" ]; then
     [ -n "$gerenciador_pacotes" ] || erro "gerenciador de pacotes desconhecido; instale: $faltantes"
     perguntar "Instalar os pacotes faltantes?" sim || erro "instalação dos pacotes recusada"
     instalar_pacotes
-    for programa in git jq curl tmux python3 npm; do
+    for programa in git jq curl tmux npm; do
       command -v "$programa" >/dev/null 2>&1 || erro "'$programa' ainda não está disponível"
     done
     versao_node_ok || erro "Node 20 ou superior ainda não está disponível"
