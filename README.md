@@ -51,7 +51,6 @@ Para sair, digite `/exit` (fecha tudo). Para deixar a sessão rodando em segundo
 | Parte | O que é |
 |---|---|
 | **Painel ao vivo** | No terminal, ao lado do Claude: tarefas, estado, avisos de conflito. Teclas: `↑` `↓` escolhem a tarefa; `c` cancela; `x` tira uma encerrada do quadro; `d` tira e apaga também a cópia e a branch (pede confirmação); `X` limpa todas as encerradas; `l` abre o log; `r` atualiza; `q` sai. |
-| **Interface web** | Rode `~/.gerenciador/agentes/scripts/ui.sh <projeto>` e abra `http://127.0.0.1:8765`. Mostra agentes e níveis, acompanha o quadro ao vivo, muda níveis e cancela tarefas. Só funciona no seu computador. |
 | **Quadro de reservas** | Cada tarefa declara os arquivos que vai tocar; duas tarefas ativas nunca reservam o mesmo. |
 | **Níveis por tarefa** | `medium`, `high` ou `xhigh`, escolhido pelo gerente conforme a dificuldade. |
 | **Passagem ao Codex** | Se o token do gerente está acabando, a tarefa vai sozinha para o Codex, que continua de onde parou. |
@@ -61,12 +60,10 @@ Símbolos do painel: `✶` rodando, `◌` aguardando, `✓` concluída, `✗` fa
 
 | | |
 |---|---|
-| <img src="docs/painel.png" alt="Painel de terminal ao vivo"> | <img src="docs/ui-web.png" alt="Interface web no computador"> |
-| *O painel no terminal, ao vivo.* | *A interface web: agentes, níveis e quadro.* |
-| <img src="docs/ui-celular.png" alt="Interface web em tela de celular" width="260"> | <img src="docs/reservas.svg" alt="Como as reservas evitam conflito"> |
-| *A mesma interface em tela de 390 px.* | *Reserva, dependência e recusa no quadro.* |
+| <img src="docs/painel.png" alt="Painel de terminal ao vivo"> | <img src="docs/reservas.svg" alt="Como as reservas evitam conflito"> |
+| *O painel no terminal, ao vivo.* | *Reserva, dependência e recusa no quadro.* |
 
-*Os prints do painel e da interface web foram feitos com um projeto de demonstração.*
+*O print do painel foi feito com um projeto de demonstração.*
 
 ## Quem faz o quê (padrões)
 
@@ -205,7 +202,6 @@ Os problemas de Windows/WSL desta tabela não foram reproduzidos em testes; ela 
 - Reservas: duas tarefas ativas não reservam o mesmo arquivo.
 - O hook impede o gerente de editar arquivos reservados por um agente.
 - O quadro marca arquivos tocados fora da reserva e arquivos tocados por mais de uma tarefa.
-- A interface web escuta só em `127.0.0.1` (só o seu computador acessa).
 - Nada é juntado à branch principal sem o gerente revisar o diff.
 
 **O que não faz**
@@ -229,7 +225,6 @@ Os problemas de Windows/WSL desta tabela não foram reproduzidos em testes; ela 
 | `agentes/GERENTE.md` | As regras do gerente, importadas no `CLAUDE.md` do projeto. |
 | `agentes/claude-agents/` | Os subagentes `codex` e `gemini`. |
 | `agentes/claude-commands/` | Os comandos `/gerente`, `/codex`, `/painel` e `/atualizar-agentes`. |
-| `agentes/ui/` | A interface web (`servidor.py` e `index.html`). |
 | `agentes/instalar.sh` | Liga o gerenciador a um projeto (o `gerenciador` já roda isso sozinho). |
 
 O quadro de tarefas e os logs ficam em `<projeto>/.git/agentes/` (fora dos commits), e as cópias de trabalho em `<pasta-pai>/.agentes-<projeto>/<nome>`.
