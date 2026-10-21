@@ -376,14 +376,11 @@ if command -v tmux >/dev/null; then
   git -C "$proj2" config user.email teste@exemplo.com
   git -C "$proj2" config user.name teste
   echo x >"$proj2/a.txt"; git -C "$proj2" add -A; git -C "$proj2" commit -qm inicial
-  cat >"$tmp/claude-sessao" <<'EOF2'
-#!/usr/bin/env bash
-echo "$*" >>"$CLAUDE_SESSAO_LOG"
-sleep 30
-EOF2
+  # O servidor do tmux não herda o ambiente do teste: o caminho do log vai dentro do script.
+  printf '#!/usr/bin/env bash\necho "$*" >>"%s"\nsleep 30\n' "$tmp/sessao.log" >"$tmp/claude-sessao"
   chmod +x "$tmp/claude-sessao"
   sessao="gerenciador-$(basename "$proj2" | tr -c 'A-Za-z0-9_\n-' '-')"
-  export CLAUDE_SESSAO_LOG="$tmp/sessao.log"
+  CLAUDE_SESSAO_LOG="$tmp/sessao.log"
   ini() { env CLAUDE_BIN="$tmp/claude-sessao" AGENTES_SEM_ANEXAR=1 TMUX= "$S/iniciar.sh" "$proj2" "$@" </dev/null; }
   tmux kill-session -t "$sessao" 2>/dev/null
   checa "cria a sessão com modelo e nível" ini --modelo opus --nivel high
