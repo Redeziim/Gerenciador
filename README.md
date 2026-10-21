@@ -13,13 +13,7 @@ Com o Gerenciador você usa vários assistentes de IA de programação ao mesmo 
 
 **Você fala com um só. Ele reparte o trabalho. Ninguém sobrescreve ninguém.**
 
-<p align="center">
-  <a href="docs/gerenciador-video.mp4">
-    <img src="docs/video-capa.png" alt="Vídeo: como o Gerenciador funciona e como rodar (2 min). Clique para assistir." width="800">
-  </a>
-  <br>
-  <em>Vídeo de 2 minutos: como funciona e como rodar. Clique para assistir.</em>
-</p>
+https://github.com/user-attachments/assets/1f5bcfbb-870a-48b1-a86e-52160eaa8e6e
 
 ## Como funciona
 
