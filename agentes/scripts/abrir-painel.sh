@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Reabre o painel ao vivo ao lado do Claude, na sessão do tmux do projeto (usado pelo /painel).
+# Abre o painel ao vivo ao lado do Claude, na sessão do tmux do projeto (usado pelo /painel).
+# Se já está aberto, fecha e abre de novo (reinicia o painel).
 #
 # Uso: abrir-painel.sh [projeto]     (pasta, apelido ou, sem nada, a pasta atual)
 
@@ -12,9 +13,11 @@ sessao="gerenciador-$(basename "$raiz" | tr -c 'A-Za-z0-9_\n-' '-')"
 
 tmux has-session -t "$sessao" 2>/dev/null \
   || erro "não há sessão '$sessao'; abra com: gerenciador $raiz"
-if [ "$(tmux list-panes -t "$sessao" | wc -l)" -ge 2 ]; then
-  echo "o painel já está aberto (Ctrl+b → para ir até ele)"; exit 0
-fi
+reaberto=""
+# Fecha só os painéis que rodam o painel.sh, nunca o do Claude.
+while read -r id cmd; do
+  case "$cmd" in *painel.sh*) tmux kill-pane -t "$id"; reaberto=1 ;; esac
+done < <(tmux list-panes -t "$sessao" -F '#{pane_id} #{pane_start_command}')
 tmux split-window -h -d -l 40% -t "$sessao" -c "$raiz" "'$aqui/painel.sh' '$raiz'"
 tmux set-option -t "$sessao" mouse on >/dev/null
-echo "painel aberto à direita"
+if [ -n "$reaberto" ]; then echo "painel reaberto à direita"; else echo "painel aberto à direita"; fi
