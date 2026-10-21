@@ -16,6 +16,7 @@ Para uma imagem:
 Para uma tarefa leve que mexe em arquivos:
 1. Veja o quadro: `AGENTES_DIR/scripts/status.sh <projeto>`.
 2. Dispare reservando o que o Gemini vai tocar: `AGENTES_DIR/scripts/tarefa.sh gemini <projeto> <nome> --reservar <caminho> [--depois <tarefa>] [--modelo <nome>] "<tarefa>"`. Use `--modelo` só se o gerente ou o usuário pedir um modelo específico. Se o script recusar por reserva em conflito, avise o gerente em vez de forçar.
+   Para ajustar uma tarefa que já terminou, use o mesmo nome com `--continuar` (o Gemini retoma a conversa e não relê o projeto): `AGENTES_DIR/scripts/tarefa.sh gemini <projeto> <nome> --continuar "<o que mudar>"`.
 3. Espere: `AGENTES_DIR/scripts/esperar.sh <projeto> <nome>`
 4. Devolva status, branch, commit, arquivos e resumo. Não faça merge.
 

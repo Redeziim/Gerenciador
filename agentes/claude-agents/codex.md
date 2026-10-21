@@ -19,6 +19,7 @@ Os scripts ficam em `AGENTES_DIR/scripts` (o caminho real foi gravado por `insta
    Use `--modelo <nome>` só quando o gerente ou o usuário pedir um modelo específico. Se o resultado vier fraco, refaça a tarefa um nível acima e avise o gerente.
    Use `--depois` quando a tarefa precisa do resultado de outra. Para uma tarefa longa, escreva-a num arquivo e use `--arquivo <tarefa.md>`. Escreva a tarefa com objetivo, arquivos que pode tocar, o que não deve tocar e como verificar.
    Se o script recusar por reserva em conflito, não force: avise o gerente quem está com o arquivo.
+   **Siga a tarefa em vez de abrir outra.** Para ajustar, corrigir ou estender uma tarefa que já terminou, use o mesmo nome com `--continuar`: o Codex retoma a conversa, no mesmo worktree, e não relê o projeto. Só a mudança vai no pedido: `tarefa.sh codex <projeto> <nome> --continuar "<o que mudar>"`. Abra tarefa nova só para trabalho de outro assunto.
 3. Espere o resultado: `AGENTES_DIR/scripts/esperar.sh <projeto> <nome>`.
 4. Devolva ao gerente: status, branch, commit, arquivos alterados e o resumo do Codex. Não faça merge: quem decide é o gerente.
 

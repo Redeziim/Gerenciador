@@ -184,6 +184,16 @@ O Codex **não** ajusta o raciocínio sozinho: sem indicação ele usa o do `~/.
 
 Para forçar outro nível ou um modelo específico, peça ao Claude ("use o Codex com raciocínio low") ou use `--raciocinio` e `--modelo` no `tarefa.sh`. `--modelo` também vale para o Gemini. Para mudar o padrão de tudo, edite `model` e `model_reasoning_effort` no `~/.codex/config.toml`.
 
+### Economizar contexto
+
+- `tarefa.sh ... <mesmo-nome> --continuar "<o que mudar>"` segue uma tarefa já terminada: o Codex (`exec resume`) e o Gemini (`--resume`) retomam a própria conversa no mesmo worktree, sem reler o projeto, e só o novo pedido é enviado.
+- Se o projeto tiver `.claude/contexto-projeto.md`, ele entra no pedido de toda tarefa nova. O Codex lê o `AGENTS.md` sozinho; o Gemini recebe o `AGENTS.md` quando não há briefing.
+- O Claude deve falar de novo com um subagente já chamado por `SendMessage`, e não abrir outro (as regras estão em `GERENTE.md`).
+
+### Comandos de barra e atualizações
+
+`instalar.sh` coloca em `.claude/commands/` os comandos `/codex`, `/codex-<modelo>` (um por modelo do cache do Codex; rode o instalador de novo quando surgir modelo novo) e `/atualizar-agentes`. Ao abrir uma sessão, um hook avisa se o Claude Code, o Codex ou o Gemini têm versão nova (confere no máximo a cada 6 horas). `/atualizar-agentes atualizar` instala; o Codex e o Gemini precisam do prefixo do npm numa pasta sua, por exemplo `npm config set prefix ~/.local`.
+
 ### Vários projetos
 
 `gerenciador <pasta>` funciona em qualquer repositório git (por exemplo `gerenciador ~/RPG-Dev-Vault`). Cada projeto tem o próprio quadro, em `<projeto>/.git/agentes/`, e a própria sessão do tmux. Toda vez que abre uma sessão nova o atalho reinstala o gerenciador no projeto, então ele sempre usa as instruções mais novas deste repositório. Se o projeto já tiver subagentes próprios chamados `codex` ou `gemini`, o instalador escreve por cima; o `RPG-Dev-Vault` foi ajustado para o `link-skills.sh` não desfazer isso.

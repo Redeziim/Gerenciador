@@ -40,3 +40,10 @@ Quando aparecer um **AVISO DE TOKEN** (vem do hook `aviso-token.sh`):
 ## Depois que uma frente termina
 
 Revise o diff da branch (`git diff <base>..<agente>/<nome>`) antes do merge. Para descartar uma frente: `git worktree remove <worktree>` e `git branch -D <agente>/<nome>`.
+
+## Economize contexto
+
+- **Siga a tarefa, não abra outra.** Para corrigir ou estender o que um agente acabou de fazer, use `tarefa.sh ... <mesmo-nome> --continuar "<o que mudar>"`: o Codex e o Gemini retomam a própria conversa, no mesmo worktree, sem reler o projeto. Tarefa nova é só para assunto novo.
+- **Reaproveite o subagente.** Para falar de novo com um subagente `codex` ou `gemini` que você já chamou, use `SendMessage` com o nome dele em vez de abrir outro com `Agent`: o novo começa do zero.
+- **Briefing do projeto.** Se existir `.claude/contexto-projeto.md`, ele entra no pedido de toda tarefa nova (stack, pastas, como rodar os testes, convenções). Escreva-o curto, com o que o agente gastaria tokens para descobrir. O Codex também lê o `AGENTS.md` sozinho, e o Gemini recebe o `AGENTS.md` quando não há briefing.
+- Passe os arquivos que importam e o que verificar no pedido; não mande o agente "explorar o projeto".

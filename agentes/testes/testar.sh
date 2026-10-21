@@ -13,6 +13,7 @@ trap '[ -n "${MANTER:-}" ] || rm -rf "$tmp"' EXIT
 
 export AGENTES_INTERVALO=0.2
 export AGENTES_ESTADO="$tmp/estado-claude"
+export AGENTES_CODEX_CONFIG="$tmp/codex.env"
 export PATH="$tmp/bin:$PATH"
 
 falhas=0
@@ -44,7 +45,7 @@ echo "$*" >>"${CODEX_ARGS_LOG:-/dev/null}"
 while [ $# -gt 0 ]; do
   case "$1" in --cd) d="$2"; shift 2 ;; --output-last-message) o="$2"; shift 2 ;; *) shift ;; esac
 done
-AGENTE=codex exec agente-simulado "$d" "$(cat)" "$o"
+AGENTE=codex exec agente-simulado "${d:-$PWD}" "$(cat)" "$o"
 EOF
 cat >"$tmp/bin/gemini" <<'EOF'
 #!/usr/bin/env bash
@@ -86,10 +87,28 @@ checa "registra raciocínio e modelo" test "$(campo simples raciocinio)/$(campo 
 "$S/tarefa.sh" codex "$proj" padrao --reservar docs/padrao "CRIAR docs/padrao/a.txt" >/dev/null
 espera padrao
 nega "sem opções, usa o config do codex" grep -q -e 'model_reasoning_effort' -e ' -m ' "$CODEX_ARGS_LOG"
-nega "raciocínio inválido é recusado" "$S/tarefa.sh" codex "$proj" ruim --raciocinio ultra "x"
+nega "raciocínio inválido é recusado" "$S/tarefa.sh" codex "$proj" ruim --raciocinio extremo "x"
 nega "raciocínio só vale para o codex" "$S/tarefa.sh" gemini "$proj" ruim2 --raciocinio low "x"
 nega "modelo com caracteres estranhos é recusado" "$S/tarefa.sh" codex "$proj" ruim3 --modelo 'a;b' "x"
 unset CODEX_ARGS_LOG
+
+echo "continuar e briefing"
+mkdir -p "$proj/.claude"
+echo "BRIEFING-DO-PROJETO" >"$proj/.claude/contexto-projeto.md"
+export CODEX_ARGS_LOG="$tmp/codex-args"; : >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" seguida --reservar docs/seguida "CRIAR docs/seguida/a.txt" >/dev/null
+espera seguida
+checa "briefing entra no pedido" grep -q BRIEFING-DO-PROJETO "$(campo seguida prompt)"
+"$S/tarefa.sh" codex "$proj" seguida --continuar "CRIAR docs/seguida/b.txt" >/dev/null
+espera seguida
+checa "continuar retoma a conversa do codex" grep -q 'exec resume --last' "$CODEX_ARGS_LOG"
+checa "continuar reaproveita a branch" git -C "$proj" cat-file -e codex/seguida:docs/seguida/b.txt
+checa "continuar mantém o trabalho anterior" git -C "$proj" cat-file -e codex/seguida:docs/seguida/a.txt
+checa "continuar reaproveita as reservas" test "$(jq -r '.reservas[0]' "$proj/.git/agentes/tarefas/seguida.json")" = docs/seguida
+nega "continuar não repete o briefing" grep -q BRIEFING-DO-PROJETO "$(campo seguida prompt)"
+nega "continuar sem tarefa anterior é recusado" "$S/tarefa.sh" codex "$proj" inexistente --continuar "x"
+nega "continuar com outro agente é recusado" "$S/tarefa.sh" gemini "$proj" seguida --continuar "x"
+rm -rf "$proj/.claude"; unset CODEX_ARGS_LOG
 
 echo "reservas"
 "$S/tarefa.sh" codex "$proj" longa --reservar src/back "DORMIR 3
@@ -188,7 +207,8 @@ echo '{"permissions":{"allow":["Bash(ls)"]}}' >"$proj/.claude/settings.json"
 "$aqui/instalar.sh" "$proj" >/dev/null && "$aqui/instalar.sh" "$proj" >/dev/null
 cfg="$proj/.claude/settings.json"
 checa "mantém o que já existia" test "$(jq -r '.permissions.allow[0]' "$cfg")" = "Bash(ls)"
-checa "não duplica hooks" test "$(jq '[.hooks[][]] | length' "$cfg")" = 4
+checa "não duplica hooks" test "$(jq '[.hooks[][]] | length' "$cfg")" = 5
+checa "instala os comandos de barra" test -f "$proj/.claude/commands/atualizar-agentes.md" -a -f "$proj/.claude/commands/codex.md"
 checa "guarda só em edições" test "$(jq -r '.hooks.PreToolUse[0].matcher' "$cfg")" = "Edit|Write|MultiEdit|NotebookEdit"
 checa "importa as regras uma vez" test "$(grep -c gerente-agentes "$proj/CLAUDE.md")" = 1
 nega "troca AGENTES_DIR pelo caminho" grep -q AGENTES_DIR "$proj/.claude/agents/codex.md"
