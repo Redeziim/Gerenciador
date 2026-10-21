@@ -211,7 +211,7 @@ EOF
   nega "erro da API vira erro" env GEMINI_API_KEY=errada "$S/imagem.sh" "x" "$tmp/img/c.png"
   # A chave também pode vir do arquivo de configuração, para shells que não leem o ~/.bashrc.
   echo "GEMINI_API_KEY=chave" >"$tmp/agentes-env"
-  AGENTES_ENV="$tmp/agentes-env" "$S/imagem.sh" "pelo arquivo" "$tmp/img/e.png" >/dev/null 2>&1
+  env -u GEMINI_API_KEY AGENTES_ENV="$tmp/agentes-env" "$S/imagem.sh" "pelo arquivo" "$tmp/img/e.png" >/dev/null 2>&1
   checa "chave lida do arquivo de configuração" test "$(cat "$tmp/img/e.png" 2>/dev/null)" = IMG1
   nega "sem chave em lugar nenhum é erro" env -u GEMINI_API_KEY AGENTES_ENV="$tmp/nao-existe" "$S/imagem.sh" "x" "$tmp/img/f.png"
   kill "$api_pid" 2>/dev/null
