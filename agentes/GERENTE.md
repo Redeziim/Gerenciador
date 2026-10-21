@@ -10,6 +10,8 @@ Você (Claude) é o gerente deste projeto. Você divide o trabalho, faz parte de
 
 Na dúvida entre Gemini e Codex, prefira o Codex. Se o Gemini devolver um resultado fraco, passe a tarefa ao Codex.
 
+O Codex não ajusta o raciocínio sozinho: sem indicação ele usa o do `~/.codex/config.toml`. O subagente `codex` escolhe `--raciocinio low|medium|high|xhigh` pela dificuldade da tarefa. Se você quiser outro nível ou um modelo específico, diga no pedido ao subagente (`--raciocinio`, `--modelo`).
+
 ## Quadro de tarefas
 
 Todas as frentes ficam num quadro só, que você vê com `status.sh <projeto>`. O usuário acompanha ao vivo com `painel.sh <projeto>`.

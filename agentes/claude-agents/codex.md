@@ -11,6 +11,12 @@ Os scripts ficam em `AGENTES_DIR/scripts` (o caminho real foi gravado por `insta
 1. Veja o quadro: `AGENTES_DIR/scripts/status.sh <projeto>`.
 2. Escolha um nome curto em minúsculas com hífen e dispare, reservando cada arquivo, pasta ou padrão que o Codex vai tocar:
    `AGENTES_DIR/scripts/tarefa.sh codex <projeto> <nome> --reservar <caminho> [--reservar ...] [--depois <tarefa>] "<tarefa>"`
+   Escolha o raciocínio pela dificuldade com `--raciocinio` (sem a opção vale o do `~/.codex/config.toml`, em geral o mais alto, o mais lento e o mais caro):
+   - `low`: mudança mecânica e curta (renomear, ajustar texto ou configuração, um arquivo pequeno).
+   - `medium`: tarefa comum dentro de um módulo, com verificação simples.
+   - `high`: funcionalidade em vários arquivos, refatoração, bug difícil de achar.
+   - `xhigh`: arquitetura, concorrência, segurança, migração de dados, ou quando o `high` já falhou.
+   Use `--modelo <nome>` só quando o gerente ou o usuário pedir um modelo específico. Se o resultado vier fraco, refaça a tarefa um nível acima e avise o gerente.
    Use `--depois` quando a tarefa precisa do resultado de outra. Para uma tarefa longa, escreva-a num arquivo e use `--arquivo <tarefa.md>`. Escreva a tarefa com objetivo, arquivos que pode tocar, o que não deve tocar e como verificar.
    Se o script recusar por reserva em conflito, não force: avise o gerente quem está com o arquivo.
 3. Espere o resultado: `AGENTES_DIR/scripts/esperar.sh <projeto> <nome>`.

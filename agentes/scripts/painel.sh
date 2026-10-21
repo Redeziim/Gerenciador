@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Painel ao vivo no terminal: todas as tarefas do Claude, do Codex e do Gemini,
-# com status, tempo, reservas, arquivos tocados e as últimas linhas do log.
+# no estilo da CLI do Claude: o que cada um está fazendo agora, em quais arquivos está
+# mexendo, o modelo usado, o tempo e o resultado.
 #
-# Uso: painel.sh <projeto> [segundos]        (Ctrl+C para sair)
+# Uso: painel.sh <projeto> [segundos]        (Ctrl+C para sair; padrão 1 s)
 #      painel.sh <projeto> --log <tarefa>    acompanha o log de uma tarefa
 
 source "$(dirname "$(readlink -f "$0")")/../lib/comum.sh"
 
-[ $# -ge 1 ] || { sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ $# -ge 1 ] || { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 aqui="$(dirname "$(readlink -f "$0")")"
 
 if [ "${2:-}" = "--log" ]; then
@@ -17,14 +18,20 @@ if [ "${2:-}" = "--log" ]; then
   exec tail -n 50 -F "$(registro_get "$reg" log)"
 fi
 
-intervalo="${2:-2}"
+intervalo="${2:-1}"
 [ -t 1 ] && export AGENTES_CORES=1
 trap 'tput cnorm 2>/dev/null; echo; exit 0' INT TERM
 tput civis 2>/dev/null || true
+clear
 while :; do
-  # Monta a tela inteira antes de limpar, para não piscar.
-  tela="$("$aqui/status.sh" "$1" --painel 2>&1)"
-  clear
-  printf '%s\n' "$tela"
+  # Monta a tela inteira antes de desenhar e só apaga o que sobrou, para não piscar.
+  # Uma coluna a menos que o terminal: uma linha que ocupa tudo quebra em alguns terminais.
+  AGENTES_COLUNAS="$(($(tput cols 2>/dev/null || echo 80) - 1))"
+  linhas="$(tput lines 2>/dev/null || echo 40)"
+  export AGENTES_COLUNAS
+  tela="$("$aqui/status.sh" "$1" --painel 2>&1 | head -n "$((linhas - 1))")"
+  printf '\033[H'
+  printf '%s\n' "$tela" | sed $'s/$/\033[K/'
+  printf '\033[J'
   sleep "$intervalo"
 done

@@ -20,7 +20,7 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 | `agentes/scripts/quadro.sh` | Quadro de tarefas: o Claude reserva e solta os arquivos dele, confere se um caminho está livre e cancela frentes. |
 | `agentes/scripts/status.sh` | Mostra o quadro: tarefas, reservas, dependências, arquivos tocados e sobreposições. |
 | `agentes/scripts/iniciar.sh` | Atalho `gerenciador`: abre o Claude e o painel lado a lado no tmux, instalando o gerenciador no projeto se faltar. |
-| `agentes/scripts/painel.sh` | Painel ao vivo no terminal com todas as frentes e as últimas linhas do log de cada uma. |
+| `agentes/scripts/painel.sh` | Painel ao vivo no terminal, no estilo da CLI do Claude: o que cada agente está fazendo agora, em quais arquivos está mexendo, o modelo, o tempo e o resultado. |
 | `agentes/scripts/esperar.sh` | Espera uma frente terminar e mostra status, commit, arquivos e resumo. |
 | `agentes/scripts/imagem.sh` | Gera imagem com o Nano Banana pela API do Gemini. |
 | `agentes/scripts/pedir-ao-claude.sh` | Manda um pedido para o Claude gerente rodar sozinho no projeto (`claude -p`), sem terminal aberto. É o que o celular usa. |
@@ -133,6 +133,10 @@ $S/tarefa.sh codex . tela-login --depois api-login --reservar src/tela/login "Cr
 $S/quadro.sh reservar . claude-rotas src/rotas.ts
 $S/quadro.sh liberar . claude-rotas
 
+# Raciocínio e modelo do Codex (sem a opção vale o do ~/.codex/config.toml)
+$S/tarefa.sh codex . ajuste-texto --raciocinio low --reservar README.md "Corrija os erros de português do README"
+$S/tarefa.sh codex . motor-sync --raciocinio xhigh --modelo <nome-do-modelo> --reservar src/sync "Reescreva o motor de sincronização ..."
+
 $S/painel.sh .                 # painel ao vivo (Ctrl+C para sair)
 $S/painel.sh . --log api-login # log de uma tarefa
 $S/esperar.sh . api-login      # espera e mostra o resultado
@@ -142,7 +146,47 @@ $S/imagem.sh "mapa de fantasia, estilo aquarela" assets/mapa.png
 $S/passar-para-codex.sh . terminar-login notas.md src/login
 ```
 
-Para ver o painel enquanto trabalha com o Claude, deixe `painel.sh` aberto em outra aba ou painel do terminal (no tmux, por exemplo).
+Para ver o painel enquanto trabalha com o Claude, use o atalho `gerenciador` (acima) ou deixe `painel.sh` aberto em outra aba do terminal.
+
+### Como ler o painel
+
+```
+✻ Agentes · Rpg-Map                               10:40:27
+  1 rodando · 1 aguardando · 3 concluída(s)
+
+✶ codex · api-login                                    2min       ← ● animada = trabalhando
+  ⎿ Crie o endpoint de login com JWT                              ← o objetivo da tarefa
+  ⎿ Rodando: npm test                                             ← o que está fazendo agora
+  ⎿ Mexendo em  src/api/login.ts +42 −3                           ← onde está mexendo (linhas)
+                src/api/auth.ts novo
+  ⎿ gpt-6.1-sol · raciocínio xhigh · reserva src/api              ← modelo e arquivos reservados
+
+◌ codex · tela-login                              aguardando    ← espera a api-login terminar
+✓ gemini · textos-menu                      concluída · 18s     ← pronto: resumo, commit e branch
+✗ codex · migracao                              falhou · 3min   ← falhou: a linha de erro do log
+```
+
+- **`✶`** (gira) rodando, **`◌`** aguardando outra tarefa, **`✓`** concluída, **`✗`** falhou, foi interrompida ou ficou bloqueada, **`⊘`** cancelada.
+- **"Mexendo em"** vem do `git diff` do worktree da tarefa, ao vivo. `⚠ fora da reserva` avisa quando o agente mexeu num arquivo que não estava reservado para ele, e `⚠ conflito` aparece no fim quando dois agentes tocam o mesmo arquivo.
+- **"Rodando: ..."** vem do log do Codex (último comando ou edição). O Gemini em modo sem terminal só escreve no final, então para ele o painel mostra os arquivos mudando, não o comando atual.
+- O log completo de uma tarefa: `painel.sh <projeto> --log <nome>`.
+
+### Modelo e raciocínio do Codex
+
+O Codex **não** ajusta o raciocínio sozinho: sem indicação ele usa o do `~/.codex/config.toml` (aqui `xhigh`, o mais lento e caro). A adaptação à dificuldade é feita pelo subagente `codex` do Claude, que escolhe `--raciocinio` pela tarefa:
+
+| Nível | Quando |
+| --- | --- |
+| `low` | mudança mecânica e curta: renomear, ajustar texto ou configuração, um arquivo pequeno |
+| `medium` | tarefa comum dentro de um módulo, com verificação simples |
+| `high` | funcionalidade em vários arquivos, refatoração, bug difícil de achar |
+| `xhigh` | arquitetura, concorrência, segurança, migração de dados, ou quando o `high` já falhou |
+
+Para forçar outro nível ou um modelo específico, peça ao Claude ("use o Codex com raciocínio low") ou use `--raciocinio` e `--modelo` no `tarefa.sh`. `--modelo` também vale para o Gemini. Para mudar o padrão de tudo, edite `model` e `model_reasoning_effort` no `~/.codex/config.toml`.
+
+### Vários projetos
+
+`gerenciador <pasta>` funciona em qualquer repositório git (por exemplo `gerenciador ~/RPG-Dev-Vault`). Cada projeto tem o próprio quadro, em `<projeto>/.git/agentes/`, e a própria sessão do tmux. Toda vez que abre uma sessão nova o atalho reinstala o gerenciador no projeto, então ele sempre usa as instruções mais novas deste repositório. Se o projeto já tiver subagentes próprios chamados `codex` ou `gemini`, o instalador escreve por cima; o `RPG-Dev-Vault` foi ajustado para o `link-skills.sh` não desfazer isso.
 
 ## Pelo celular (OpenClaw + Telegram)
 

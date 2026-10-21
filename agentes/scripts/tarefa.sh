@@ -12,6 +12,8 @@
 #   --depois <tarefa>     só começa quando essa tarefa terminar, e parte do resultado dela (repetível)
 #   --base <ref>          ponto de partida da branch (padrão: HEAD do projeto)
 #   --forcar              abre mesmo com conflito de reserva
+#   --modelo <nome>       modelo do agente (padrão: o do ~/.codex/config.toml, ou GEMINI_MODELO)
+#   --raciocinio <nível>  só Codex: low, medium, high ou xhigh (padrão: o do ~/.codex/config.toml)
 #
 # Variáveis: CODEX_BIN, GEMINI_BIN, GEMINI_MODELO, CODEX_ARGS, GEMINI_ARGS.
 
@@ -66,13 +68,17 @@ if [ "${1:-}" = "--executar" ]; then
     echo "== $(agora) início ($agente)"
     case "$agente" in
       codex)
+        opcoes=()
+        [ -n "$(registro_get "$reg" modelo)" ] && opcoes+=(-m "$(registro_get "$reg" modelo)")
+        [ -n "$(registro_get "$reg" raciocinio)" ] && opcoes+=(-c "model_reasoning_effort=\"$(registro_get "$reg" raciocinio)\"")
         # shellcheck disable=SC2086
-        "${CODEX_BIN:-codex}" exec --sandbox workspace-write --cd "$wt" \
+        "${CODEX_BIN:-codex}" exec --sandbox workspace-write --cd "$wt" ${opcoes[@]+"${opcoes[@]}"} \
           --output-last-message "$resumo" ${CODEX_ARGS:-} - <"$prompt_arq" || status=$?
         ;;
       gemini)
         modelo=()
-        [ -n "${GEMINI_MODELO:-}" ] && modelo=(-m "$GEMINI_MODELO")
+        [ -n "$(registro_get "$reg" modelo)" ] && modelo=(-m "$(registro_get "$reg" modelo)")
+        [ -z "${modelo[*]:-}" ] && [ -n "${GEMINI_MODELO:-}" ] && modelo=(-m "$GEMINI_MODELO")
         # Cada worktree é uma pasta nova, que o Gemini CLI trata como não confiável: sem isto
         # ele sai com código 55 e desliga o --yolo. As versões antigas ignoram a variável.
         # shellcheck disable=SC2086
@@ -100,7 +106,7 @@ if [ "${1:-}" = "--executar" ]; then
   if [ "$status" = 0 ]; then encerrar concluida; else encerrar falhou; fi
 fi
 
-[ $# -ge 4 ] || { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ $# -ge 4 ] || { sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 precisa git jq
 
 agente="$1"; projeto="$2"; nome="$3"; shift 3
@@ -111,11 +117,13 @@ case "$agente" in
 esac
 nome_valido "$nome"
 
-base="HEAD"; tarefa=""; forcar=0
+base="HEAD"; tarefa=""; forcar=0; modelo_pedido=""; raciocinio=""
 reservas=(); depois=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --base) base="$2"; shift 2 ;;
+    --modelo) [ $# -ge 2 ] || erro "--modelo precisa de um nome"; modelo_pedido="$2"; shift 2 ;;
+    --raciocinio) [ $# -ge 2 ] || erro "--raciocinio precisa de um nível"; raciocinio="$2"; shift 2 ;;
     --reservar) reservas+=("$2"); shift 2 ;;
     --depois) depois+=("$2"); shift 2 ;;
     --forcar) forcar=1; shift ;;
@@ -127,6 +135,11 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$tarefa" ] || erro "tarefa vazia"
+if [ -n "$raciocinio" ]; then
+  [ "$agente" = codex ] || erro "--raciocinio só vale para o Codex"
+  case "$raciocinio" in low|medium|high|xhigh) ;; *) erro "raciocínio '$raciocinio' inválido (use low, medium, high ou xhigh)" ;; esac
+fi
+[[ -z "$modelo_pedido" || "$modelo_pedido" =~ ^[A-Za-z0-9._:/-]+$ ]] || erro "nome de modelo '$modelo_pedido' inválido"
 
 raiz="$(raiz_projeto "$projeto")"
 estado="$(dir_estado "$raiz")"
@@ -184,11 +197,12 @@ jq -n \
   --arg worktree "$wt" --arg base "$(git -C "$raiz" rev-parse --short "$base")" --arg criada "$(agora)" \
   --arg log "$estado/logs/$nome.log" --arg resumo "$estado/logs/$nome.resumo.md" \
   --arg prompt "$prompt_arq" --arg titulo "$(printf '%s' "$tarefa" | head -n1 | cut -c1-120)" \
+  --arg modelo "$modelo_pedido" --arg raciocinio "$raciocinio" \
   --argjson reservas "$(json_array ${reservas[@]+"${reservas[@]}"})" \
   --argjson depois "$(json_array ${depois[@]+"${depois[@]}"})" \
   '{nome:$nome, agente:$agente, status:$status, branch:$branch, worktree:$worktree, base:$base,
     criada:$criada, log:$log, resumo:$resumo, prompt:$prompt, titulo:$titulo,
-    reservas:$reservas, depois:$depois}' >"$reg"
+    modelo:$modelo, raciocinio:$raciocinio, reservas:$reservas, depois:$depois}' >"$reg"
 : >"$estado/logs/$nome.log"
 
 destravar "$estado/quadro"

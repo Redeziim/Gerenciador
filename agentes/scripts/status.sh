@@ -65,21 +65,14 @@ if [ "$modo" = json ]; then
   exit 0
 fi
 
+
 if [ "$modo" = painel ] && { [ -t 1 ] || [ "${AGENTES_CORES:-}" = 1 ]; } && [ -z "${NO_COLOR:-}" ]; then
   negrito=$'\033[1m'; fraco=$'\033[2m'; normal=$'\033[0m'
-  verde=$'\033[32m'; amarelo=$'\033[33m'; vermelho=$'\033[31m'; azul=$'\033[34m'; ciano=$'\033[36m'
+  verde=$'\033[38;5;71m'; amarelo=$'\033[38;5;179m'; vermelho=$'\033[38;5;167m'
+  azul=$'\033[38;5;75m'; laranja=$'\033[38;5;173m'
 else
-  negrito=""; fraco=""; normal=""; verde=""; amarelo=""; vermelho=""; azul=""; ciano=""
+  negrito=""; fraco=""; normal=""; verde=""; amarelo=""; vermelho=""; azul=""; laranja=""
 fi
-
-cor_status() {
-  case "$1" in
-    rodando) echo "$azul" ;;
-    aguardando) echo "$amarelo" ;;
-    concluida) echo "$verde" ;;
-    *) echo "$vermelho" ;;
-  esac
-}
 
 duracao() {
   local ini="$1" fim="$2"
@@ -89,12 +82,208 @@ duracao() {
     | if . < 60 then "\(.)s" elif . < 3600 then "\(./60|floor)min" else "\(./3600|floor)h\(.%3600/60|floor)min" end'
 }
 
+# ---------------------------------------------------------------------------------------
+# Painel ao vivo, no estilo da CLI do Claude: um bloco por agente, com o que ele está
+# fazendo agora e em quais arquivos está mexendo.
+# ---------------------------------------------------------------------------------------
+
+# Corta o texto para caber em n colunas.
+cortar() {
+  local s="$1" n="$2"
+  [ "$n" -ge 4 ] || n=4
+  if [ "${#s}" -gt "$n" ]; then printf '%s…' "${s:0:$((n - 1))}"; else printf '%s' "$s"; fi
+}
+
+cor_agente() {
+  case "$1" in claude) echo "$laranja" ;; codex) echo "$verde" ;; gemini) echo "$azul" ;; esac
+}
+
+# O que o Codex está fazendo agora, lido do log: o último comando, edição ou comentário dele.
+atividade_codex() {
+  { tail -n 300 "$1" 2>/dev/null || true; } | awk '
+    /^exec$/ { estado = "exec"; next }
+    /^apply patch$/ { ult = "Editando arquivos"; estado = ""; next }
+    /^codex$/ { estado = "msg"; next }
+    estado == "exec" {
+      cmd = $0
+      sub(/^\/usr\/bin\/bash -lc /, "", cmd); sub(/ in \/[^ ]*$/, "", cmd); gsub("^[\"\047]|[\"\047]$", "", cmd)
+      ult = "Rodando: " cmd; estado = ""; next
+    }
+    estado == "msg" && NF { ult = $0; estado = ""; next }
+    END { print ult }'
+}
+
+# Arquivos em que a tarefa está mexendo: "arquivo<TAB>informação" (+linhas −linhas, ou "novo").
+mudancas() {
+  local agente="$1" reg="$2" wt="$3" base="$4"
+  if [ "$agente" = claude ]; then registro_lista "$reg" tocados | awk '{ print $0 "\t" }'; return 0; fi
+  [ -d "$wt" ] || return 0
+  git -C "$wt" diff --numstat "$base" 2>/dev/null \
+    | awk -F'\t' '{ print $3 "\t" ($1 == "-" ? "binário" : "+" $1 " −" $2) }'
+  git -C "$wt" ls-files --others --exclude-standard 2>/dev/null | awk '{ print $0 "\tnovo" }'
+}
+
+desenhar_painel() {
+  local largura="${AGENTES_COLUNAS:-80}" sub cont max_arq
+  sub="  ${fraco}⎿${normal} "; cont="    "
+  local quadros=(· ✢ ✳ ✶ ✻ ✽)
+  local giro="${quadros[$(($(date +%s) % 6))]}"
+
+  # Contagem para o cabeçalho.
+  local n_rod=0 n_agu=0 n_ok=0 n_mal=0 reg st
+  for reg in ${regs[@]+"${regs[@]}"}; do
+    visivel "$reg" || continue
+    case "$(registro_get "$reg" status)" in
+      rodando) n_rod=$((n_rod + 1)) ;;
+      aguardando) n_agu=$((n_agu + 1)) ;;
+      concluida) n_ok=$((n_ok + 1)) ;;
+      *) n_mal=$((n_mal + 1)) ;;
+    esac
+  done
+
+  local resumo_cab=""
+  [ "$n_rod" -gt 0 ] && resumo_cab="$n_rod rodando"
+  [ "$n_agu" -gt 0 ] && resumo_cab="${resumo_cab:+$resumo_cab · }$n_agu aguardando"
+  [ "$n_ok" -gt 0 ] && resumo_cab="${resumo_cab:+$resumo_cab · }$n_ok concluída(s)"
+  [ "$n_mal" -gt 0 ] && resumo_cab="${resumo_cab:+$resumo_cab · }$n_mal com problema"
+
+  local hora esq pad
+  hora="$(date '+%H:%M:%S')"
+  esq="✻ Agentes · $(basename "$raiz")"
+  pad=$((largura - ${#esq} - ${#hora}))
+  [ "$pad" -ge 1 ] || pad=1
+  printf '%s✻%s %sAgentes%s %s· %s%s%*s%s%s%s\n' "$laranja" "$normal" "$negrito" "$normal" "$fraco" "$(basename "$raiz")" "$normal" \
+    "$pad" "" "$fraco" "$hora" "$normal"
+  [ -n "$resumo_cab" ] && echo "  ${fraco}${resumo_cab}${normal}"
+  echo
+
+  local mostradas=$((n_rod + n_agu + n_ok + n_mal))
+  if [ "$mostradas" -eq 0 ]; then
+    echo "  ${fraco}Nenhuma tarefa no quadro.${normal}"
+    echo "  ${fraco}Peça ao Claude para dividir o trabalho entre o Codex e o Gemini.${normal}"
+  fi
+
+  local passada nome agente titulo inicio fim commit modelo racio wt base log resumo res dep
+  local g cg rotulo tempo plain atividade linha arq info fora r qtd lim
+  for passada in rodando aguardando outras; do
+    for reg in ${regs[@]+"${regs[@]}"}; do
+      visivel "$reg" || continue
+      st="$(registro_get "$reg" status)"
+      case "$passada" in
+        rodando) [ "$st" = rodando ] || continue ;;
+        aguardando) [ "$st" = aguardando ] || continue ;;
+        *) ativa "$st" && continue ;;
+      esac
+
+      IFS=$'\x1f' read -r nome agente titulo inicio fim commit modelo racio wt base log resumo res dep < <(
+        jq -r '[.nome, .agente, (.titulo // ""), (.inicio // ""), (.fim // ""), (.commit // ""), (.modelo // ""),
+                (.raciocinio // ""), (.worktree // ""), (.base // ""), (.log // ""), (.resumo // ""),
+                ((.reservas // []) | join(", ")), ((.depois // []) | join(", "))]
+               | map(gsub("[\t\n]"; " ")) | join("\u001f")' "$reg")
+
+      case "$st" in
+        rodando) g="$giro"; cg="$laranja"; rotulo="" ;;
+        aguardando) g="◌"; cg="$amarelo"; rotulo="aguardando" ;;
+        concluida) g="✓"; cg="$verde"; rotulo="concluída" ;;
+        interrompida) g="✗"; cg="$vermelho"; rotulo="interrompida" ;;
+        cancelada) g="⊘"; cg="$fraco"; rotulo="cancelada" ;;
+        bloqueada) g="✗"; cg="$vermelho"; rotulo="bloqueada" ;;
+        *) g="✗"; cg="$vermelho"; rotulo="falhou" ;;
+      esac
+      tempo="$(duracao "$inicio" "$fim")"
+      [ "$tempo" = "-" ] && tempo=""
+      [ -n "$rotulo" ] && tempo="$rotulo${tempo:+ · $tempo}"
+
+      # Linha principal: ● agente · tarefa            tempo
+      plain="$g $agente · $nome"
+      pad=$((largura - ${#plain} - ${#tempo}))
+      [ "$pad" -ge 1 ] || pad=1
+      printf '%s%s%s %s%s%s %s·%s %s%*s%s%s%s\n' "$cg" "$g" "$normal" "$(cor_agente "$agente")$negrito" "$agente" "$normal" \
+        "$fraco" "$normal" "$nome" "$pad" "" "$fraco" "$tempo" "$normal"
+
+      [ "$agente" = claude ] && titulo="Sessão do Claude (gerente)"
+      [ -n "$titulo" ] && echo "${sub}${fraco}$(cortar "$titulo" $((largura - 6)))${normal}"
+
+      # O que está fazendo agora, ou o resultado.
+      case "$st" in
+        rodando)
+          if [ "$agente" = codex ]; then atividade="$(atividade_codex "$log" || true)"; else atividade=""; fi
+          if [ "$agente" = claude ]; then atividade="Editando"
+          elif [ -z "$atividade" ]; then
+            if [ "$agente" = gemini ]; then atividade="Trabalhando (o Gemini só mostra a saída ao final)"; else atividade="Começando"; fi
+          fi
+          echo "${sub}$(cortar "$atividade" $((largura - 6)))"
+          ;;
+        aguardando)
+          echo "${sub}${amarelo}Esperando${normal} ${dep:-outra tarefa}"
+          ;;
+        concluida)
+          if [ -s "$resumo" ]; then
+            linha="$(grep -m1 -v '^[[:space:]]*$' "$resumo" 2>/dev/null | sed -e 's/^[#*[:space:]-]*//' -e 's/\[\([^]]*\)\]([^)]*)/\1/g' -e 's/[`*]//g' || true)"
+            [ -n "$linha" ] && echo "${sub}$(cortar "$linha" $((largura - 6)))"
+          fi
+          [ -n "$commit" ] && echo "${sub}${fraco}commit $commit · branch $(registro_get "$reg" branch)${normal}"
+          ;;
+        *)
+          linha="$(grep -v '^== \|^[[:space:]]*$\|^[[:space:]]*at ' "$log" 2>/dev/null | grep -iE 'erro|error|fail|falh|denied|not found|trust' | tail -n 1 || true)"
+          [ -n "$linha" ] || linha="$(grep -v '^== \|^[[:space:]]*$\|^[[:space:]]*at ' "$log" 2>/dev/null | tail -n 1 || true)"
+          [ -n "$linha" ] || linha="$(grep -o 'terminou com código [0-9]*' "$log" 2>/dev/null | tail -n 1 || true)"
+          [ -n "$linha" ] && echo "${sub}${vermelho}$(cortar "$linha" $((largura - 6)))${normal}"
+          ;;
+      esac
+
+      # Em que arquivos está mexendo.
+      qtd=0
+      lim=4; [ "$st" = rodando ] || lim=3
+      max_arq=$((largura - 22))
+      while IFS=$'\t' read -r arq info; do
+        [ -n "$arq" ] || continue
+        qtd=$((qtd + 1))
+        case "$st" in rodando|aguardando|concluida) printf '%s\t%s\n' "$arq" "$nome" >>"$toques" ;; esac
+        [ "$qtd" -le "$lim" ] || continue
+        fora=""
+        if [ -n "$res" ]; then
+          fora="${amarelo}⚠ fora da reserva${normal}"
+          while IFS= read -r r; do
+            [ -n "$r" ] && sobrepoe "$r" "$arq" && { fora=""; break; }
+          done < <(registro_lista "$reg" reservas)
+        fi
+        if [ "$qtd" -eq 1 ]; then linha="${sub}${fraco}Mexendo em${normal}  "; else linha="${cont}$(printf '%*s' 12 '')"; fi
+        arq="$(cortar "$arq" "$max_arq")"
+        printf '%s%s %s%s%s%s\n' "$linha" "$arq" "$fraco" "$info" "$normal" "${fora:+ $fora}"
+      done < <(mudancas "$agente" "$reg" "$wt" "$base")
+      [ "$qtd" -le "$lim" ] || echo "${cont}$(printf '%*s' 12 '')${fraco}+ $((qtd - lim)) arquivo(s)${normal}"
+      if [ "$qtd" -eq 0 ] && [ "$st" = rodando ]; then echo "${sub}${fraco}Mexendo em  nenhum arquivo ainda${normal}"; fi
+
+      # Modelo e reserva, em uma linha discreta.
+      if [ "$agente" != claude ]; then
+        [ -n "$modelo" ] || modelo="$(grep -m1 '^model:' "$log" 2>/dev/null | cut -d' ' -f2- || true)"
+        [ -n "$racio" ] || racio="$(grep -m1 '^reasoning effort:' "$log" 2>/dev/null | cut -d' ' -f3- || true)"
+        linha="${modelo}${racio:+ · raciocínio $racio}"
+        [ -n "$res" ] && linha="${linha:+$linha · }reserva $res"
+        [ -n "$linha" ] && echo "${sub}${fraco}$(cortar "$linha" $((largura - 6)))${normal}"
+      fi
+      echo
+    done
+  done
+}
+
+if [ "$modo" = painel ]; then
+  toques="$(mktemp)"
+  trap 'rm -f "$toques"' EXIT
+  desenhar_painel
+  # Sobreposição: o mesmo arquivo tocado por mais de uma tarefa.
+  sort "$toques" | awk -F'\t' '
+    $1 == ant { donos = donos ", " $2; n++; next }
+    { if (n > 1) print ant "\t" donos; ant = $1; donos = $2; n = 1 }
+    END { if (n > 1) print ant "\t" donos }' | while IFS=$'\t' read -r arq donos; do
+      echo "${vermelho}⚠ conflito:${normal} '$arq' foi tocado por $donos"
+    done
+  exit 0
+fi
+
 if [ "$modo" = celular ]; then
   echo "$(basename "$raiz") às $(date '+%H:%M')"
-fi
-if [ "$modo" = painel ]; then
-  echo "${negrito}Agentes em $(basename "$raiz")${normal}  ${fraco}$(date '+%H:%M:%S')${normal}"
-  echo
 fi
 
 mostradas=0
@@ -108,7 +297,6 @@ for reg in ${regs[@]+"${regs[@]}"}; do
   agente="$(registro_get "$reg" agente)"
   st="$(registro_get "$reg" status)"
   titulo="$(registro_get "$reg" titulo)"
-  c="$(cor_status "$st")"
 
   if [ "$modo" = celular ]; then
     t="$(printf '%s' "$titulo" | cut -c1-60)"
@@ -116,23 +304,18 @@ for reg in ${regs[@]+"${regs[@]}"}; do
     continue
   fi
 
-  if [ "$modo" = painel ]; then
-    printf '%s%-22s%s %s%-7s%s %s%-12s%s %6s  %s\n' "$negrito" "$nome" "$normal" "$ciano" "$agente" "$normal" \
-      "$c" "$st" "$normal" "$(duracao "$(registro_get "$reg" inicio)" "$(registro_get "$reg" fim)")" "$titulo"
-  else
-    printf '%-22s %-7s %-12s %s\n' "$nome" "$agente" "$st" "$titulo"
-  fi
+  printf '%-22s %-7s %-12s %s\n' "$nome" "$agente" "$st" "$titulo"
 
   res="$(registro_lista "$reg" reservas | tr '\n' ' ')"
   dep="$(registro_lista "$reg" depois | tr '\n' ' ')"
-  [ -n "$res" ] && echo "    ${fraco}reserva:${normal} $res"
-  [ -n "$dep" ] && echo "    ${fraco}depois de:${normal} $dep"
+  [ -n "$res" ] && echo "    reserva: $res"
+  [ -n "$dep" ] && echo "    depois de: $dep"
 
   while IFS= read -r arq; do
     [ -n "$arq" ] || continue
     fora=""
     if [ -n "$res" ]; then
-      fora=" ${amarelo}(fora da reserva)${normal}"
+      fora=" (fora da reserva)"
       while IFS= read -r r; do
         [ -n "$r" ] && sobrepoe "$r" "$arq" && { fora=""; break; }
       done < <(registro_lista "$reg" reservas)
@@ -140,14 +323,6 @@ for reg in ${regs[@]+"${regs[@]}"}; do
     echo "    $arq$fora"
     case "$st" in rodando|aguardando|concluida) printf '%s\t%s\n' "$arq" "$nome" >>"$toques" ;; esac
   done < <(arquivos_da "$reg")
-
-  if [ "$modo" = painel ] && [ "$st" = rodando ] && [ "$agente" != claude ]; then
-    log="$(registro_get "$reg" log)"
-    if [ -s "$log" ]; then
-      tail -n "${AGENTES_LINHAS_LOG:-3}" "$log" | cut -c1-110 | sed "s/^/    ${fraco}│${normal} /"
-    fi
-  fi
-  [ "$modo" = painel ] && echo
 done
 
 [ "$mostradas" -gt 0 ] || echo "nenhuma tarefa no quadro de $raiz"
@@ -157,5 +332,5 @@ sort "$toques" | awk -F'\t' '
   $1 == ant { donos = donos ", " $2; n++; next }
   { if (n > 1) print ant "\t" donos; ant = $1; donos = $2; n = 1 }
   END { if (n > 1) print ant "\t" donos }' | while IFS=$'\t' read -r arq donos; do
-    echo "${vermelho}aviso:${normal} '$arq' foi tocado por $donos" >&2
+    echo "aviso: '$arq' foi tocado por $donos" >&2
   done

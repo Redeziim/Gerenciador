@@ -17,12 +17,10 @@ precisa git tmux "${CLAUDE_BIN:-claude}"
 raiz="$(raiz_projeto "${1:-$PWD}")"
 sessao="gerenciador-$(basename "$raiz" | tr -c 'A-Za-z0-9_\n-' '-')"
 
-if [ ! -f "$raiz/.claude/agents/codex.md" ]; then
-  echo "Instalando o gerenciador em $raiz ..."
-  "$aqui/instalar.sh" "$raiz" >/dev/null
-fi
-
 if ! tmux has-session -t "$sessao" 2>/dev/null; then
+  # Instala ou atualiza (o instalar.sh pode rodar de novo): assim o projeto sempre usa as
+  # instruções e os hooks mais novos deste repositório.
+  "$aqui/instalar.sh" "$raiz" >/dev/null
   # Quando o Claude sai, a sessão inteira fecha (o painel não fica sozinho).
   tmux new-session -d -s "$sessao" -c "$raiz" \
     "${CLAUDE_BIN:-claude}; tmux kill-session -t '$sessao' 2>/dev/null"

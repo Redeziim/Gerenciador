@@ -40,6 +40,7 @@ echo "Resumo do $AGENTE: pronto" >"${saida:-/dev/stdout}"
 EOF
 cat >"$tmp/bin/codex" <<'EOF'
 #!/usr/bin/env bash
+echo "$*" >>"${CODEX_ARGS_LOG:-/dev/null}"
 while [ $# -gt 0 ]; do
   case "$1" in --cd) d="$2"; shift 2 ;; --output-last-message) o="$2"; shift 2 ;; *) shift ;; esac
 done
@@ -73,6 +74,22 @@ checa "gemini concluiu" test "$(campo leve status)" = concluida
 checa "commit do codex na branch" git -C "$proj" cat-file -e codex/pesado:src/back/api.txt
 checa "commit do gemini na branch" git -C "$proj" cat-file -e gemini/leve:docs/leia.txt
 checa "resumo do codex gravado" grep -q "Resumo do codex" "$(campo pesado resumo)"
+
+echo "modelo e raciocínio"
+export CODEX_ARGS_LOG="$tmp/codex-args"
+"$S/tarefa.sh" codex "$proj" simples --raciocinio low --modelo gpt-teste --reservar docs/simples "CRIAR docs/simples/a.txt" >/dev/null
+espera simples
+checa "raciocínio chega ao codex" grep -q 'model_reasoning_effort="low"' "$CODEX_ARGS_LOG"
+checa "modelo chega ao codex" grep -q -- '-m gpt-teste' "$CODEX_ARGS_LOG"
+checa "registra raciocínio e modelo" test "$(campo simples raciocinio)/$(campo simples modelo)" = "low/gpt-teste"
+: >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" padrao --reservar docs/padrao "CRIAR docs/padrao/a.txt" >/dev/null
+espera padrao
+nega "sem opções, usa o config do codex" grep -q -e 'model_reasoning_effort' -e ' -m ' "$CODEX_ARGS_LOG"
+nega "raciocínio inválido é recusado" "$S/tarefa.sh" codex "$proj" ruim --raciocinio ultra "x"
+nega "raciocínio só vale para o codex" "$S/tarefa.sh" gemini "$proj" ruim2 --raciocinio low "x"
+nega "modelo com caracteres estranhos é recusado" "$S/tarefa.sh" codex "$proj" ruim3 --modelo 'a;b' "x"
+unset CODEX_ARGS_LOG
 
 echo "reservas"
 "$S/tarefa.sh" codex "$proj" longa --reservar src/back "DORMIR 3
@@ -157,6 +174,12 @@ checa "estima pelo transcript sem linha de status" grep -q "AVISO" <<<"$(jq -n -
 echo "painel"
 checa "status em texto" "$S/status.sh" "$proj"
 checa "status do painel" "$S/status.sh" "$proj" --painel
+tela="$(AGENTES_COLUNAS=60 "$S/status.sh" "$proj" --painel 2>&1)"
+checa "painel mostra o agente e a tarefa" grep -q 'codex · pesado' <<<"$tela"
+checa "painel mostra o resultado e o commit" grep -q 'commit ' <<<"$tela"
+checa "painel mostra os arquivos mexidos" grep -q 'Mexendo em  src/back/api.txt' <<<"$tela"
+checa "painel mostra o raciocínio escolhido" grep -q 'raciocínio low' <<<"$tela"
+checa "painel cabe na largura" test "$(awk '{ if (length($0) > m) m = length($0) } END { print m }' <<<"$tela")" -le 60
 checa "esconde tarefas antigas sem --todas" test "$("$S/status.sh" "$proj" --json | jq length)" -gt 0
 
 echo "instalador"
