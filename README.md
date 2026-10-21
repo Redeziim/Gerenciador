@@ -1,146 +1,130 @@
-# Gerenciador
+<p align="center">
+  <img src="docs/banner.svg" alt="Gerenciador. Um gerente de IA. Vários agentes. Ninguém pisa no arquivo do outro." width="800">
+</p>
 
-Com o Gerenciador você usa **vários assistentes de IA de programação ao mesmo tempo no mesmo projeto**, sem que eles se atrapalhem.
+<p align="center">
+  <img src="https://img.shields.io/badge/plataformas-Linux%20%C2%B7%20macOS%20%C2%B7%20Windows%20(WSL)-cfffcf?style=flat&labelColor=15181e" alt="plataformas: Linux%20%C2%B7%20macOS%20%C2%B7%20Windows%20(WSL)">
+  <img src="https://img.shields.io/badge/gerente-Opus-cfffcf?style=flat&labelColor=15181e" alt="gerente: Opus">
+  <img src="https://img.shields.io/badge/executam-Sonnet%20%2B%20Codex%20sol-cfffcf?style=flat&labelColor=15181e" alt="executam: Sonnet%20%2B%20Codex%20sol">
+  <img src="https://img.shields.io/badge/estado-reposit%C3%B3rio%20privado-d97757?style=flat&labelColor=15181e" alt="estado: reposit%C3%B3rio%20privado">
+</p>
 
-Você conversa com um só, o **gerente** (um Claude). Ele divide o pedido em tarefas e entrega cada uma a um agente: **Claude Sonnet**, **Codex** ou, se você pedir, **Gemini**. Cada agente trabalha numa cópia separada do projeto. No fim, o gerente confere o que foi feito e junta tudo.
+Com o Gerenciador você usa vários assistentes de IA de programação ao mesmo tempo, no mesmo projeto. Você conversa com um só: o **gerente**, um Claude (Opus). Ele divide o pedido em tarefas e entrega cada uma a um agente, que trabalha numa cópia separada do projeto. No fim, o gerente confere e junta tudo.
 
-**Uma analogia:** você é o dono da obra. O gerente é o mestre de obras: ele recebe o seu pedido, reparte o serviço entre os pedreiros, garante que dois deles não mexam na mesma parede e só entrega a obra depois de conferir.
+**Você fala com um só. Ele reparte o trabalho. Ninguém sobrescreve ninguém.**
 
-## Instalar (um comando)
+## Como funciona
 
-**Linux, macOS ou WSL:**
+<p align="center">
+  <img src="docs/fluxo.svg" alt="Fluxo: você faz o pedido, o gerente divide, Codex sol e Claude Sonnet executam em paralelo, o gerente revisa o diff e faz o merge na main." width="900">
+</p>
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/Redeziim/Gerenciador/main/install.sh | bash
-```
+| Etapa | O que acontece |
+|---|---|
+| **Pedido** | Você escreve em português normal o que quer. |
+| **Divisão** | O gerente quebra o pedido em tarefas de escopo fechado, escolhe quem faz cada uma e o nível de raciocínio, e escreve o prompt de cada uma. |
+| **Execução** | Cada agente trabalha numa cópia própria do projeto (um *worktree*, uma pasta ligada ao mesmo repositório) e numa *branch* própria (uma linha separada de histórico), em paralelo. |
+| **Revisão** | O gerente lê o `git diff` de cada tarefa e só então faz o *merge*, que junta a branch da tarefa na principal. |
 
-**Windows** (PowerShell; usa o WSL/Ubuntu por baixo, e instala o WSL se faltar):
+**Cada tarefa na sua cópia, cada arquivo com um só dono, e nada entra na main sem revisão.**
 
-```powershell
-irm https://raw.githubusercontent.com/Redeziim/Gerenciador/main/install.ps1 | iex
-```
+## Começar rápido
+
+| Onde | O que fazer |
+|---|---|
+| **1. Instalar** | **Linux, macOS ou WSL:**<br>`curl -fsSL https://raw.githubusercontent.com/Redeziim/Gerenciador/main/install.sh \| bash`<br>**Windows** (PowerShell; usa o WSL/Ubuntu por baixo e instala o WSL se faltar):<br>`irm https://raw.githubusercontent.com/Redeziim/Gerenciador/main/install.ps1 \| iex` |
+| **2. Entrar nas contas** | Rode `claude` (e saia com `/exit`) e `codex login`. |
+| **3. Abrir** | Na pasta de um projeto que já seja um repositório git (por exemplo `~/projetos/meu-projeto`), rode `gerenciador`. No Windows, tudo roda dentro do **WSL** (um Linux dentro do Windows); guarde o projeto no Ubuntu (`~/projetos/...`), não em `/mnt/c`. |
 
 O instalador confere o que falta (git, tmux, jq, Node...), instala com a sua permissão, baixa o Gerenciador em `~/.gerenciador` e cria o comando `gerenciador`. Pode rodar de novo a qualquer hora: ele só atualiza. Opções: `--sim` (aceita as perguntas com padrão "sim"), `--sem-clis` (não instala Claude/Codex/Gemini) e `--teste` (só mostra o que faria).
 
 > O repositório está **privado** por enquanto, então os links acima só funcionam depois que ele for público. Enquanto isso, com o `gh` instalado e logado (`gh auth login`): `gh api repos/Redeziim/Gerenciador/contents/install.sh -H 'Accept: application/vnd.github.raw' | bash`, ou clone e rode `./install.sh`.
 
-**Depois de instalar:**
+Ao abrir, o terminal se divide em dois com o **tmux** (um programa que divide o terminal em painéis): à esquerda o Claude gerente, onde você conversa; à direita o painel, que mostra ao vivo o que cada agente faz. Numa sessão nova ele pergunta o **modelo** e o **nível** do gerente (o nível é o quanto a IA "pensa" antes de responder: mais alto é melhor e mais lento). Enter mantém o último usado; o sugerido é `opus` com `high`.
 
-1. Entre nas contas: rode `claude` (e saia com `/exit`) e `codex login`.
-2. Vá para a pasta de um projeto que já seja um repositório git (por exemplo `~/projetos/meu-projeto`) e rode:
+Exemplo de pedido: *"Crie uma tela de login e corrija os textos do menu."* O gerente divide em duas tarefas (por exemplo, `tela-login` para o Codex e `textos-menu` para o Sonnet), diz numa linha quem faz cada uma e dispara. Quando terminam, ele revisa e junta.
 
-```bash
-gerenciador
-```
+Para sair, digite `/exit` (fecha tudo). Para deixar a sessão rodando em segundo plano, `Ctrl+b` e depois `d`; rodar `gerenciador` de novo volta para ela. O mouse troca entre o Claude e o painel.
 
-No Windows, tudo roda dentro do **WSL** (um Linux que roda dentro do Windows). Guarde o projeto dentro do Ubuntu (`~/projetos/...`), não em `/mnt/c`.
+## O que você ganha
 
-## Primeiros passos
+| Parte | O que é |
+|---|---|
+| **Painel ao vivo** | No terminal, ao lado do Claude: tarefas, estado, avisos de conflito. Teclas: `↑` `↓` escolhem a tarefa; `c` cancela; `x` tira uma encerrada do quadro; `d` tira e apaga também a cópia e a branch (pede confirmação); `X` limpa todas as encerradas; `l` abre o log; `r` atualiza; `q` sai. |
+| **Interface web** | Rode `~/.gerenciador/agentes/scripts/ui.sh <projeto>` e abra `http://127.0.0.1:8765`. Mostra agentes e níveis, acompanha o quadro ao vivo, muda níveis e cancela tarefas. Só funciona no seu computador. |
+| **Quadro de reservas** | Cada tarefa declara os arquivos que vai tocar; duas tarefas ativas nunca reservam o mesmo. |
+| **Níveis por tarefa** | `medium`, `high` ou `xhigh`, escolhido pelo gerente conforme a dificuldade. |
+| **Passagem ao Codex** | Se o token do gerente está acabando, a tarefa vai sozinha para o Codex, que continua de onde parou. |
+| **Comando `/painel`** | Abre o painel ao lado do Claude (ou fecha e abre de novo, se já estava aberto). |
 
-Ao abrir o `gerenciador`, o terminal se divide em duas partes (isso usa o **tmux**, um programa que divide o terminal em painéis):
+Símbolos do painel: `✶` rodando, `◌` aguardando, `✓` concluída, `✗` falhou ou bloqueada, `⊘` cancelada. Ele também avisa `⚠ fora da reserva` (o agente mexeu num arquivo que não reservou) e `⚠ conflito` (dois agentes no mesmo arquivo).
 
-- **À esquerda**, o Claude gerente, onde você conversa.
-- **À direita**, o painel, que mostra ao vivo o que cada agente está fazendo.
+| | |
+|---|---|
+| <img src="docs/painel.png" alt="Painel de terminal ao vivo"> | <img src="docs/ui-web.png" alt="Interface web no computador"> |
+| *O painel no terminal, ao vivo.* | *A interface web: agentes, níveis e quadro.* |
+| <img src="docs/ui-celular.png" alt="Interface web em tela de celular" width="260"> | <img src="docs/reservas.svg" alt="Como as reservas evitam conflito"> |
+| *A mesma interface em tela de 390 px.* | *Reserva, dependência e recusa no quadro.* |
 
-Numa sessão nova, ele pergunta o **modelo** e o **nível** do gerente. O nível é o quanto a IA "pensa" antes de responder: mais alto é melhor e mais lento. Aperte Enter para manter o último usado (o sugerido é `opus` com `high`).
-
-Exemplo de pedido:
-
-> Crie uma tela de login e corrija os textos do menu.
-
-O que acontece: o gerente mostra o quadro de agentes e níveis, divide o pedido em duas tarefas (por exemplo, `tela-login` para o Codex e `textos-menu` para o Sonnet), diz numa linha quem fará cada uma e dispara. Você acompanha no painel. Quando as tarefas terminam, o gerente revisa e junta o resultado.
-
-Para sair, digite `/exit` (fecha tudo). Para deixar a sessão rodando em segundo plano, aperte `Ctrl+b` e depois `d`; rodar `gerenciador` de novo volta para ela. O mouse funciona para trocar entre o Claude e o painel.
+*Os prints do painel e da interface web foram feitos com um projeto de demonstração.*
 
 ## Quem faz o quê (padrões)
 
 | Papel | Quem | Observação |
-| --- | --- | --- |
+|---|---|---|
 | Gerente (também escreve o prompt de cada tarefa) | **Opus** | O nível é escolhido ao abrir; o sugerido é `high`. |
-| Quem executa as tarefas | **Claude Sonnet** e **Codex sol** | Veja os níveis abaixo. |
+| Quem executa as tarefas | **Claude Sonnet** e **Codex sol** | Em `medium`, `high` ou `xhigh`. |
 | Gemini | Desligado | Só entra se você citá-lo pelo nome, ou pedir uma imagem com o Nano Banana. |
 
 "Codex sol" é o modelo `-sol` mais novo que o Codex tiver. Se você já escolheu outro modelo do Codex, vale o que você escolheu.
 
-**Nível de cada tarefa:**
-
-| Nível | Quando |
-| --- | --- |
-| `medium` | tarefa comum |
-| `high` | tarefa difícil |
-| `xhigh` | tarefa crítica (arquitetura, segurança, migração de dados) ou quando o `high` falhou |
-
-**Quem pega o quê:**
+<p align="center">
+  <img src="docs/niveis.svg" alt="Níveis: medium para tarefa comum, high para difícil, xhigh para crítica ou quando o high falhou." width="900">
+</p>
 
 - **Codex sol:** código com escopo fechado, que pode andar em paralelo.
 - **Sonnet:** texto, documentação, revisão e o que depende do contexto da conversa.
-
-Conversas, dúvidas e leituras o gerente responde sozinho, sem chamar agente.
+- Conversas, dúvidas e leituras o gerente responde sozinho, sem chamar agente.
 
 **Tudo isso muda se você pedir, a qualquer momento.** Veja "Como configurar".
 
 ## Como uma tarefa funciona
 
-1. **Você faz o pedido** ao gerente, em português normal.
-2. **O gerente mostra o quadro** com os agentes e os níveis, divide o pedido em tarefas de escopo fechado e diz numa linha quem faz cada uma. Ele segue sem esperar, mas você pode corrigir.
-3. **Cada tarefa ganha a sua cópia do projeto.** Essa cópia se chama *worktree*: uma pasta com os arquivos do projeto, ligada ao mesmo repositório. Junto vem uma *branch*, uma linha própria de histórico (por exemplo `codex/tela-login`). Assim ninguém sobrescreve o trabalho do outro.
-4. **Reserva de arquivos.** Cada tarefa declara quais arquivos ou pastas vai mexer. Se outra tarefa ativa já reservou algum, a nova não abre. O gerente também reserva o que ele mesmo vai editar, e um *hook* (verificação automática) o impede de editar o que está reservado por um agente.
-5. **Dependências.** Se uma tarefa precisa do resultado de outra (a tela precisa da API pronta), ela fica `aguardando`, começa sozinha quando a outra termina e já parte do resultado dela. Se a outra falhar, ela fica `bloqueada`.
-6. **O agente trabalha** na cópia dele e, ao terminar, o resultado é salvo num *commit* (um registro permanente das mudanças) na branch da tarefa.
-7. **O gerente revisa e faz o merge.** Ele olha o que mudou (`git diff`) e depois faz o *merge*, que é juntar a branch da tarefa na branch principal do projeto.
-8. **Para descartar** uma tarefa que não serviu, use a tecla `d` no painel interativo, ou `git worktree remove <pasta>` e `git branch -D <agente>/<nome>`.
+1. **Pedido.** Você pede em português normal.
+2. **Quadro.** O gerente mostra os agentes e níveis, divide em tarefas de escopo fechado e diz numa linha quem faz cada uma. Segue sem esperar, mas você pode corrigir.
+3. **Worktree e branch.** Cada tarefa ganha sua cópia do projeto e uma branch própria (por exemplo `codex/tela-login`).
+4. **Reservas.** A tarefa declara os arquivos ou pastas que vai mexer. Se outra tarefa ativa já reservou algum, a nova não abre. O gerente também reserva o que edita, e um *hook* (verificação automática) o impede de editar o que um agente reservou.
+5. **Dependências.** Se uma tarefa precisa do resultado de outra, fica `aguardando`, começa sozinha quando a outra termina e já parte do resultado dela. Se a outra falhar, fica `bloqueada`.
+6. **Commit.** Ao terminar, o agente salva o resultado num *commit* (registro permanente das mudanças) na branch da tarefa.
+7. **Revisão e merge.** O gerente olha o `git diff` e faz o merge na branch principal.
+8. **Descartar.** Para jogar fora uma tarefa: tecla `d` no painel, ou `git worktree remove <pasta>` e `git branch -D <agente>/<nome>`.
 
-**Se o token estiver acabando.** *Token* é a unidade de consumo da IA: cada conversa gasta um pouco do seu limite. Quando o contexto passa de 85% ou a cota passa de 90%, o gerente recebe um AVISO DE TOKEN. Ele para de começar trabalho novo, escreve notas do que já foi feito e do que falta, e passa a tarefa ao Codex (`passar-para-codex.sh`). O Codex continua numa branch própria, a partir do estado atual, inclusive do que ainda não tinha sido salvo. O gerente avisa você com qual nome a tarefa foi passada.
+**Se o token estiver acabando.** *Token* é a unidade de consumo da IA. Quando o contexto passa de 85% ou a cota passa de 90%, o gerente recebe um AVISO DE TOKEN: para de começar trabalho novo, escreve notas do que foi feito e do que falta e passa a tarefa ao Codex (`passar-para-codex.sh`). O Codex continua numa branch própria, a partir do estado atual, inclusive do que ainda não tinha sido salvo. O gerente avisa você com qual nome a tarefa foi passada.
 
 ## Como configurar
 
 Os níveis são `low`, `medium`, `high`, `xhigh` e `max`.
 
-**Ao abrir:**
-
-```bash
-gerenciador --modelo opus --nivel high      # pula a pergunta
-gerenciador ~/projetos/meu-projeto          # outra pasta (ou apelido de projeto)
-```
-
-**Dentro do Claude:**
-
-```text
-/gerente                          mostra o quadro de agentes e níveis
-/gerente gerente opus high        gerente: modelo e nível
-/gerente gerente nivel xhigh      troca só o nível do gerente
-/gerente codex high               fixa o nível do Codex
-/gerente codex auto               volta a escolha por tarefa
-/gerente claude sonnet medium     fixa modelo e nível dos subagentes Claude
-/gerente claude auto              volta a escolha por tarefa
-/codex                            mostra o modelo e o raciocínio do Codex
-/codex listar                     modelos disponíveis
-/codex gpt-6.1-sol medium         troca o modelo e o nível do Codex
-/model e /effort                  trocam o modelo e o nível do gerente nesta sessão
-```
-
-Também existe um comando `/codex-<modelo>` para cada modelo do Codex (por exemplo `/codex-gpt-6.1-sol`). A troca do gerente por `/gerente` vale na **próxima abertura**; na sessão aberta, use `/model` e `/effort`.
-
-Ou simplesmente peça, em linguagem natural: "use o Codex com xhigh nesta tarefa", "faça essa com o Sonnet", "use o Gemini para revisar os textos".
-
 | Quero... | Faça... |
-| --- | --- |
+|---|---|
+| Abrir sem a pergunta de modelo e nível | `gerenciador --modelo opus --nivel high` |
+| Abrir outra pasta (ou apelido de projeto) | `gerenciador ~/projetos/meu-projeto` |
+| Ver o quadro de agentes e níveis | `/gerente` |
+| Outro gerente na próxima abertura | `/gerente gerente <modelo> [nível]`, por exemplo `/gerente gerente opus high` |
+| Trocar só o nível do gerente | `/gerente gerente nivel xhigh` |
 | Outro modelo ou nível para o gerente agora | `/model` e `/effort` |
-| Outro gerente na próxima abertura | `/gerente gerente <modelo> [nível]` |
-| Que o Codex use sempre o mesmo nível | `/gerente codex <nível>` |
+| Que o Codex use sempre o mesmo nível | `/gerente codex high` |
+| Fixar modelo e nível dos subagentes Claude | `/gerente claude sonnet medium` |
 | Que o gerente escolha o nível por tarefa | `/gerente codex auto` e `/gerente claude auto` |
-| Trocar o modelo do Codex | `/codex <modelo>` ou `/codex-<modelo>` |
-| Usar o Gemini | Cite-o no pedido ("use o Gemini para...") |
-| Um nível só numa tarefa | Peça ao gerente: "essa tarefa com xhigh" |
+| Ver o modelo e o raciocínio do Codex | `/codex` (e `/codex listar` mostra os modelos) |
+| Trocar o modelo do Codex | `/codex gpt-6.1-sol medium` ou `/codex-<modelo>` (por exemplo `/codex-gpt-6.1-sol`) |
+| Usar o Gemini | Cite-o no pedido: "use o Gemini para revisar os textos" |
+| Um nível só numa tarefa | Peça ao gerente: "use o Codex com xhigh nesta tarefa" |
 
-## Painel e interface web
+A troca por `/gerente` vale na **próxima abertura**; na sessão aberta, use `/model` e `/effort`.
 
-- **`/painel`** abre o painel ao lado do Claude (ou fecha e abre de novo, se já estava aberto).
-- **Painel interativo.** Teclas: `↑` `↓` escolhem a tarefa; `c` cancela; `x` tira uma tarefa encerrada do quadro; `d` tira e apaga também a cópia e a branch (pede confirmação); `X` limpa todas as encerradas; `l` abre o log; `r` atualiza; `q` sai.
-- **Símbolos:** `✶` rodando, `◌` aguardando, `✓` concluída, `✗` falhou ou bloqueada, `⊘` cancelada. O painel também avisa `⚠ fora da reserva` (o agente mexeu num arquivo que não reservou) e `⚠ conflito` (dois agentes no mesmo arquivo).
-- **Interface web.** Rode `~/.gerenciador/agentes/scripts/ui.sh <projeto>` e abra `http://127.0.0.1:8765` no navegador. Ela mostra agentes e níveis, acompanha o quadro ao vivo e permite mudar níveis e cancelar tarefas. Só funciona no seu computador.
-
-## Comandos úteis
+<details>
+<summary><strong>Comandos úteis (scripts)</strong></summary>
 
 Os scripts ficam em `~/.gerenciador/agentes/scripts`. O gerente os usa sozinho, mas você também pode.
 
@@ -159,7 +143,10 @@ Os scripts ficam em `~/.gerenciador/agentes/scripts`. O gerente os usa sozinho, 
 
 Se o projeto tiver o arquivo `.claude/contexto-projeto.md` (stack, pastas, como rodar os testes), ele entra no pedido de toda tarefa nova e poupa tempo dos agentes.
 
-## Pelo celular (opcional)
+</details>
+
+<details>
+<summary><strong>Pelo celular (OpenClaw + Telegram)</strong></summary>
 
 O [OpenClaw](https://docs.openclaw.ai) roda no computador e conversa com você pelo Telegram. A skill `gerenciador-agentes` ensina o OpenClaw a usar os scripts daqui. O computador precisa ficar ligado.
 
@@ -178,7 +165,10 @@ Segurança: só a conta pareada fala com o bot (não troque o `dmPolicy` para ab
 
 Se o bot não responde, rode `openclaw gateway status` e `openclaw doctor`. Se aparecer "comando 'claude' não encontrado", acrescente a pasta da CLI ao PATH do serviço: `openclaw config set tools.exec.pathPrepend '["/home/SEU-USUARIO/.local/bin"]'` e `openclaw gateway restart`.
 
-## Problemas comuns
+</details>
+
+<details>
+<summary><strong>Problemas comuns</strong></summary>
 
 **Na instalação**
 
@@ -205,7 +195,10 @@ Se uma tarefa fica `falhou`, o motivo está no log: `painel.sh <projeto> --log <
 
 Os problemas de Windows/WSL desta tabela não foram reproduzidos em testes; ela serve para reconhecer o sintoma.
 
-## Segurança e limites
+</details>
+
+<details>
+<summary><strong>Segurança e limites</strong></summary>
 
 **O que o projeto protege**
 
@@ -224,7 +217,10 @@ Os problemas de Windows/WSL desta tabela não foram reproduzidos em testes; ela 
 - Pelo celular, o pedido roda até o fim sem poder perguntar nada.
 - Testado com agentes simulados (`agentes/testes/testar.sh`) e com Codex e Gemini reais no Linux. Falta testar a conversa pelo Telegram e o uso no Windows/WSL.
 
-## Para quem quer mexer
+</details>
+
+<details>
+<summary><strong>Para quem quer mexer</strong></summary>
 
 | Onde | O que tem |
 | --- | --- |
@@ -239,3 +235,5 @@ Os problemas de Windows/WSL desta tabela não foram reproduzidos em testes; ela 
 O quadro de tarefas e os logs ficam em `<projeto>/.git/agentes/` (fora dos commits), e as cópias de trabalho em `<pasta-pai>/.agentes-<projeto>/<nome>`.
 
 Para testar tudo com agentes simulados: `~/.gerenciador/agentes/testes/testar.sh` (a última linha tem que ser "tudo certo"). Ele também roda no CI, em Linux e macOS.
+
+</details>

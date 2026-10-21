@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <title>Como ninguém se atropela</title>
+  <defs>
+    <marker id="seta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#d9b25f"/>
+    </marker>
+  </defs>
+  <rect width="1600" height="700" rx="28" fill="#1f1d1b"/>
+  <rect x="1.5" y="1.5" width="1597" height="697" rx="27" fill="none" stroke="#3a3632" stroke-width="3"/>
+  <text x="60" y="64" font-size="34" font-weight="700" fill="#ece6de">Como ninguém se atropela</text>
+
+  <!-- faixa 1 -->
+  <rect x="60" y="100" width="1480" height="110" rx="20" fill="#2a2724" stroke="#3a3632" stroke-width="2"/>
+  <text x="90" y="168" font-size="30" font-weight="700" fill="#ece6de" font-family="ui-monospace,Menlo,Consolas,monospace">api-pedidos</text>
+  <text x="700" y="148" font-size="20" fill="#a59e94">reserva</text>
+  <rect x="700" y="158" width="190" height="34" rx="17" fill="#1f1d1b" stroke="#7fbf8e" stroke-width="2"/>
+  <text x="795" y="182" text-anchor="middle" font-size="21" fill="#7fbf8e" font-family="ui-monospace,Menlo,Consolas,monospace">src/api/</text>
+  <rect x="1330" y="140" width="180" height="40" rx="20" fill="#7fbf8e"/>
+  <text x="1420" y="168" text-anchor="middle" font-size="21" font-weight="700" fill="#1f1d1b">rodando</text>
+
+  <!-- faixa 2 -->
+  <rect x="60" y="270" width="1480" height="110" rx="20" fill="#2a2724" stroke="#3a3632" stroke-width="2"/>
+  <text x="90" y="338" font-size="30" font-weight="700" fill="#ece6de" font-family="ui-monospace,Menlo,Consolas,monospace">tela-pedidos</text>
+  <text x="440" y="318" font-size="20" fill="#a59e94">depois</text>
+  <rect x="440" y="328" width="200" height="34" rx="17" fill="#1f1d1b" stroke="#d9b25f" stroke-width="2"/>
+  <text x="540" y="352" text-anchor="middle" font-size="21" fill="#d9b25f" font-family="ui-monospace,Menlo,Consolas,monospace">api-pedidos</text>
+  <text x="700" y="318" font-size="20" fill="#a59e94">reserva</text>
+  <rect x="700" y="328" width="190" height="34" rx="17" fill="#1f1d1b" stroke="#7fbf8e" stroke-width="2"/>
+  <text x="795" y="352" text-anchor="middle" font-size="21" fill="#7fbf8e" font-family="ui-monospace,Menlo,Consolas,monospace">src/telas/</text>
+  <rect x="1330" y="310" width="180" height="40" rx="20" fill="none" stroke="#d9b25f" stroke-width="2.5"/>
+  <text x="1420" y="338" text-anchor="middle" font-size="21" font-weight="700" fill="#d9b25f">aguardando</text>
+
+  <!-- seta de dependencia -->
+  <path d="M1420 210 L1420 300" stroke="#d9b25f" stroke-width="3.5" stroke-dasharray="9 7" fill="none" marker-end="url(#seta)"/>
+  <text x="1404" y="262" text-anchor="end" font-size="20" fill="#d9b25f">espera terminar</text>
+
+  <!-- faixa 3 -->
+  <rect x="60" y="440" width="1480" height="110" rx="20" fill="#2a2724" stroke="#3a3632" stroke-width="2"/>
+  <text x="90" y="508" font-size="30" font-weight="700" fill="#ece6de" font-family="ui-monospace,Menlo,Consolas,monospace">outra-api</text>
+  <text x="700" y="488" font-size="20" fill="#a59e94">tenta reservar</text>
+  <rect x="700" y="498" width="190" height="34" rx="17" fill="#1f1d1b" stroke="#e5675f" stroke-width="2"/>
+  <text x="795" y="522" text-anchor="middle" font-size="21" fill="#e5675f" font-family="ui-monospace,Menlo,Consolas,monospace">src/api/</text>
+  <rect x="1010" y="478" width="500" height="54" rx="27" fill="#e5675f"/>
+  <text x="1260" y="514" text-anchor="middle" font-size="24" font-weight="800" fill="#1f1d1b">recusada: arquivo já reservado</text>
+
+  <!-- legenda -->
+  <g font-size="21" fill="#a59e94">
+    <circle cx="80" cy="598" r="8" fill="#7fbf8e"/>
+    <text x="100" y="605"><tspan fill="#ece6de" font-weight="700">Reserva:</tspan> cada tarefa declara o que vai tocar.</text>
+    <circle cx="80" cy="640" r="8" fill="#d9b25f"/>
+    <text x="100" y="647"><tspan fill="#ece6de" font-weight="700">Dependência:</tspan> espera a outra terminar e parte do resultado dela.</text>
+    <circle cx="840" cy="598" r="8" fill="#e5675f"/>
+    <text x="860" y="605"><tspan fill="#ece6de" font-weight="700">Recusa:</tspan> se o arquivo já está reservado, a tarefa não abre.</text>
+  </g>
+</svg>
