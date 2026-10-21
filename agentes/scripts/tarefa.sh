@@ -155,6 +155,10 @@ if [ "$agente" = codex ] && [ -f "$cfg" ]; then # padrões de codex-config.sh
   [ -n "$modelo_pedido" ] || modelo_pedido="$(sed -n 's/^modelo=//p' "$cfg" | tail -n 1)"
   [ -n "$raciocinio" ] || raciocinio="$(sed -n 's/^raciocinio=//p' "$cfg" | tail -n 1)"
 fi
+if [ "$agente" = codex ]; then # nível fixado pelo usuário (gerente-config.sh) vence a escolha por tarefa
+  fixo="$(sed -n 's/^codex_nivel=//p' "$(dir_estado "$(raiz_projeto "$projeto")")/gerente.env" 2>/dev/null | tail -n 1)"
+  [ -z "$fixo" ] || raciocinio="$fixo"
+fi
 if [ -n "$raciocinio" ]; then
   [ "$agente" = codex ] || erro "--raciocinio só vale para o Codex"
   case "$raciocinio" in low|medium|high|xhigh|max|ultra) ;; *) erro "raciocínio '$raciocinio' inválido (use low, medium, high, xhigh, max ou ultra)" ;; esac

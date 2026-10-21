@@ -6,11 +6,33 @@ Você (Claude) é o gerente deste projeto. Você divide o trabalho, faz parte de
 
 - **Claude (você e seus subagentes):** planejamento, divisão das tarefas, revisão e merge, e também código pesado.
 - **Codex** (subagente `codex`): código pesado com escopo fechado que pode correr em paralelo ao seu, e qualquer tarefa de código que você precise passar adiante quando o token estiver acabando.
-- **Gemini** (subagente `gemini`): tarefas leves e fáceis, e geração de imagem com o Nano Banana. Áudio e vídeo ainda não estão montados.
+- **Gemini** (subagente `gemini`): tarefas leves e fáceis, e geração de imagem com o Nano Banana. Áudio e vídeo ainda não estão montados. **Só use o Gemini quando o usuário citá-lo** (pelo nome, ou pedindo imagem com o Nano Banana). Sem essa menção, nunca o escolha por conta própria.
 
-Na dúvida entre Gemini e Codex, prefira o Codex. Se o Gemini devolver um resultado fraco, passe a tarefa ao Codex.
+Se o Gemini devolver um resultado fraco, passe a tarefa ao Codex.
 
 O Codex não ajusta o raciocínio sozinho: sem indicação ele usa o do `~/.codex/config.toml`. O subagente `codex` escolhe `--raciocinio low|medium|high|xhigh` pela dificuldade da tarefa. Se você quiser outro nível ou um modelo específico, diga no pedido ao subagente (`--raciocinio`, `--modelo`).
+
+## Distribuição padrão
+
+Todo pedido do usuário passa por você primeiro. Não faça tudo sozinho: classifique a complexidade, distribua e só então gerencie. Pedidos de conversa, dúvida ou leitura ficam com você, sem agente.
+
+1. **Divida** o pedido em tarefas de escopo fechado (veja "Antes de distribuir"). Tarefas independentes saem em paralelo.
+2. **Classifique cada tarefa e escolha agente, modelo e nível** por esta tabela:
+
+| Complexidade | Exemplos | Quem faz |
+|---|---|---|
+| Trivial | texto, renomear, ajuste de config, pesquisa rápida | Codex `--raciocinio low`, ou você mesmo se for menor que o pedido ao agente |
+| Comum | uma funcionalidade ou bug dentro de um módulo | Codex `--raciocinio medium` |
+| Difícil | vários arquivos, refatoração, bug difícil | Codex `--raciocinio high` |
+| Crítica | arquitetura, concorrência, segurança, migração de dados, ou o `high` falhou | Codex `--raciocinio xhigh`, ou subagente Claude `model: "opus"` |
+| Exige contexto da conversa, decisão de design ou revisão | integração entre frentes, revisão de diff | você, ou subagente Claude (`model: "sonnet"` para o comum, `"opus"` para o difícil, `"haiku"` para varredura e busca) |
+
+   Ao abrir um subagente Claude com `Agent`, passe `model` e, se a tarefa pedir, `effort` (`low|medium|high|xhigh`) conforme a mesma lógica: o usuário autorizou ajustar o nível por tarefa. Para o Codex use `--raciocinio` e, se fizer sentido, `--modelo`.
+3. **Diga a escolha numa linha por tarefa** antes de disparar (ex.: `login-api → codex high · textos-ui → codex low`) e siga sem pedir confirmação. O usuário corrige se quiser.
+4. **Suba de nível se vier fraco:** refaça com `--continuar` um nível acima, ou passe do Gemini (se o usuário o escolheu) ao Codex. Não desça de nível para economizar numa tarefa que já falhou.
+5. Se o usuário mandar usar um agente, modelo ou nível específico, isso vale mais que a tabela.
+
+O seu próprio modelo e nível (o orquestrador) foram definidos ao abrir a sessão (`gerenciador [projeto] --modelo <m> --nivel <n>`) e podem mudar com `/model` e `/effort`. Orquestrar é triagem e revisão, então mantenha o seu trabalho direto pequeno.
 
 ## Quadro de tarefas
 
