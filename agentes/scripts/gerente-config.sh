@@ -45,10 +45,15 @@ esac
 cfg_codex="${AGENTES_CODEX_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/agentes/codex.env}"
 cod() { [ -f "$cfg_codex" ] && sed -n "s/^$1=//p" "$cfg_codex" | tail -n 1 || true; }
 ou() { [ -n "$1" ] && echo "$1" || echo "$2"; }
+modelo_codex="$(cod modelo)"
+if [ -z "$modelo_codex" ]; then
+  sol="$("$(dirname "$(readlink -f "$0")")/codex-config.sh" sol)"
+  [ -z "$sol" ] || modelo_codex="$sol (sol, padrão)"
+fi
 
 echo "Agentes de $(basename "$raiz"):"
 printf '  %-8s %s · %s\n' gerente "$(ou "$(get gerente_modelo)" '(modelo padrão)')" "$(ou "$(get gerente_nivel)" '(nível padrão)')"
-printf '  %-8s %s · %s\n' codex "$(ou "$(cod modelo)" '(modelo padrão do Codex)')" \
+printf '  %-8s %s · %s\n' codex "$(ou "$modelo_codex" '(modelo padrão do Codex)')" \
   "$([ -n "$(get codex_nivel)" ] && echo "$(get codex_nivel) (fixo)" || echo 'nível por tarefa')"
 printf '  %-8s %s · %s\n' claude "$(ou "$(get claude_modelo)" 'modelo por tarefa')" \
   "$([ -n "$(get claude_nivel)" ] && echo "$(get claude_nivel) (fixo)" || echo 'nível por tarefa')"

@@ -5,10 +5,17 @@
 #      codex-config.sh modelo <nome> [nível]  troca o modelo (ex.: gpt-6.1-sol); "auto" volta ao do Codex
 #      codex-config.sh raciocinio <nível>   troca o raciocínio (low, medium, high, xhigh, max, ultra)
 #      codex-config.sh listar               modelos e níveis disponíveis
+#      codex-config.sh sol                  slug do modelo sol mais novo no cache
 #      codex-config.sh <modelo> <nível>     atalho para trocar os dois
 set -eu
 arq="${AGENTES_CODEX_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/agentes/codex.env}"
 cache="${CODEX_HOME:-$HOME/.codex}/models_cache.json"
+if [ "${1:-}" = sol ]; then
+  if [ -s "$cache" ]; then
+    jq -r '.models[]?.slug? | select(type == "string" and endswith("-sol"))' "$cache" | LC_ALL=C sort -V | tail -n 1
+  fi
+  exit 0
+fi
 mkdir -p "$(dirname "$arq")"; touch "$arq"
 get() { sed -n "s/^$1=//p" "$arq" | tail -n 1; }
 set_() { grep -v "^$1=" "$arq" >"$arq.tmp" || true; [ -z "$2" ] || echo "$1=$2" >>"$arq.tmp"; mv "$arq.tmp" "$arq"; }
