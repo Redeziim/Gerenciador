@@ -19,7 +19,8 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 | `agentes/scripts/tarefa.sh` | Abre worktree e branch `<agente>/<nome>`, reserva arquivos, espera dependências, roda o Codex ou o Gemini em segundo plano e faz o commit ao final. |
 | `agentes/scripts/quadro.sh` | Quadro de tarefas: o Claude reserva e solta os arquivos dele, confere se um caminho está livre e cancela frentes. |
 | `agentes/scripts/status.sh` | Mostra o quadro: tarefas, reservas, dependências, arquivos tocados e sobreposições. |
-| `agentes/scripts/iniciar.sh` | Atalho `gerenciador`: abre o Claude e o painel lado a lado no tmux, instalando o gerenciador no projeto se faltar. |
+| `agentes/scripts/iniciar.sh` | Atalho `gerenciador`: abre o Claude e o painel lado a lado no tmux, instalando o gerenciador no projeto se faltar. Em sessão nova, pergunta o modelo e o nível do gerente; Enter mantém o último usado, e `--modelo`/`--nivel` pulam a pergunta. Se a sessão já existe, volta a ela como está. |
+| `agentes/scripts/gerente-config.sh` | Mostra o quadro de agentes e níveis do projeto e permite definir o gerente e os níveis do Codex e dos subagentes Claude. |
 | `agentes/scripts/painel.sh` | Painel ao vivo no terminal, no estilo da CLI do Claude: o que cada agente está fazendo agora, em quais arquivos está mexendo, o modelo, o tempo e o resultado. |
 | `agentes/scripts/esperar.sh` | Espera uma frente terminar e mostra status, commit, arquivos e resumo. |
 | `agentes/scripts/imagem.sh` | Gera imagem com o Nano Banana pela API do Gemini. |
@@ -32,7 +33,7 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 | `agentes/scripts/uso-codex.sh` | Mostra o uso do Codex (janela de 5 horas e semana) no painel. |
 | `agentes/scripts/interativo.sh` | Painel interativo (o `painel.sh` abre este por padrão): escolhe a tarefa, cancela, limpa do quadro e vê o log. |
 | `agentes/scripts/atualizar-agentes.sh` | Confere (e instala) atualizações do Claude Code, do Codex e do Gemini. O hook de início de sessão usa `avisar`. |
-| `agentes/claude-commands/` | Comandos de barra `/codex` e `/atualizar-agentes`; o `instalar.sh` gera também um `/codex-<modelo>` por modelo. |
+| `agentes/claude-commands/` | Comandos de barra `/gerente`, `/codex` e `/atualizar-agentes`; o `instalar.sh` gera também um `/codex-<modelo>` por modelo. |
 | `agentes/hooks/statusline.sh` | Linha de status do Claude Code com contexto e cota usados. Grava os números para o hook. |
 | `agentes/hooks/aviso-token.sh` | Hook que injeta o AVISO DE TOKEN quando o contexto passa de 85% ou a cota passa de 90%. |
 | `agentes/hooks/guarda-arquivos.sh` | Hook que impede o Claude de editar um arquivo reservado pelo Codex ou pelo Gemini, e registra no quadro o que o Claude edita. |
@@ -189,6 +190,12 @@ O Codex **não** ajusta o raciocínio sozinho: sem indicação ele usa o do `~/.
 
 Para forçar outro nível ou um modelo específico, peça ao Claude ("use o Codex com raciocínio low") ou use `--raciocinio` e `--modelo` no `tarefa.sh`. `--modelo` também vale para o Gemini. Para mudar o padrão de tudo, edite `model` e `model_reasoning_effort` no `~/.codex/config.toml`.
 
+### Distribuição padrão
+
+O Claude gerente classifica cada tarefa antes de distribuir: texto e ajustes curtos vão para o Codex `low` (ou para o próprio gerente se forem menores que o pedido ao agente); tarefas comuns de um módulo usam `medium`; vários arquivos, refatoração e bugs difíceis usam `high`; arquitetura, concorrência, segurança, migração de dados ou falha do `high` usam `xhigh` ou um subagente Claude `opus`. Conversas, dúvidas, leitura, decisões de design e revisão ficam com o gerente ou com um subagente Claude. O Gemini só entra quando o usuário o citar, inclusive ao pedir imagem com o Nano Banana. A escolha de agente e nível aparece numa linha por tarefa antes de começar.
+
+O quadro de agentes e níveis do projeto aparece com `/gerente`. Para mudar o padrão, use `/gerente gerente <modelo> [nível]`, `/gerente codex <nível|auto>` ou `/gerente claude <modelo|auto> [nível]`. A troca do gerente vale na próxima abertura do `gerenciador`; na sessão atual, use `/model` e `/effort`.
+
 ### Economizar contexto
 
 - `tarefa.sh ... <mesmo-nome> --continuar "<o que mudar>"` segue uma tarefa já terminada: o Codex (`exec resume`) e o Gemini (`--resume`) retomam a própria conversa no mesmo worktree, sem reler o projeto, e só o novo pedido é enviado.
@@ -197,7 +204,16 @@ Para forçar outro nível ou um modelo específico, peça ao Claude ("use o Code
 
 ### Comandos de barra e atualizações
 
-`instalar.sh` coloca em `.claude/commands/` os comandos `/codex`, `/codex-<modelo>` (um por modelo do cache do Codex; rode o instalador de novo quando surgir modelo novo) e `/atualizar-agentes`. Ao abrir uma sessão, um hook avisa se o Claude Code, o Codex ou o Gemini têm versão nova (confere no máximo a cada 6 horas). `/atualizar-agentes atualizar` instala; o Codex e o Gemini precisam do prefixo do npm numa pasta sua, por exemplo `npm config set prefix ~/.local`.
+`instalar.sh` coloca em `.claude/commands/` os comandos abaixo. Ao abrir uma sessão, um hook avisa se o Claude Code, o Codex ou o Gemini têm versão nova (confere no máximo a cada 6 horas).
+
+| Comando | Função |
+| --- | --- |
+| `/gerente` | Mostra ou troca o gerente e os níveis dos agentes do projeto. |
+| `/codex` | Mostra ou troca o modelo e o raciocínio padrão do Codex. |
+| `/codex-<modelo>` | Seleciona um modelo do cache do Codex; rode o instalador de novo quando surgir modelo novo. |
+| `/atualizar-agentes` | Confere atualizações; `/atualizar-agentes atualizar` instala. |
+
+Para atualizar, o Codex e o Gemini precisam do prefixo do npm numa pasta sua, por exemplo `npm config set prefix ~/.local`.
 
 ### Vários projetos
 
