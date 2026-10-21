@@ -1,6 +1,10 @@
 # Gerenciador
 
-Um jeito de usar **vários assistentes de IA de programação ao mesmo tempo no mesmo projeto**, sem que eles se atrapalhem. Você conversa com um só, o **Claude (o gerente)**, e ele reparte o trabalho com o **Codex** e (se você pedir) o **Gemini**. Cada um trabalha numa cópia separada do projeto (um git worktree com branch própria), então ninguém sobrescreve o arquivo do outro. No fim o gerente revisa e junta tudo.
+Com o Gerenciador você usa **vários assistentes de IA de programação ao mesmo tempo no mesmo projeto**, sem que eles se atrapalhem.
+
+Você conversa com um só, o **gerente** (um Claude). Ele divide o pedido em tarefas e entrega cada uma a um agente: **Claude Sonnet**, **Codex** ou, se você pedir, **Gemini**. Cada agente trabalha numa cópia separada do projeto. No fim, o gerente confere o que foi feito e junta tudo.
+
+**Uma analogia:** você é o dono da obra. O gerente é o mestre de obras: ele recebe o seu pedido, reparte o serviço entre os pedreiros, garante que dois deles não mexam na mesma parede e só entrega a obra depois de conferir.
 
 ## Instalar (um comando)
 
@@ -20,322 +24,218 @@ O instalador confere o que falta (git, tmux, jq, Node...), instala com a sua per
 
 > O repositório está **privado** por enquanto, então os links acima só funcionam depois que ele for público. Enquanto isso, com o `gh` instalado e logado (`gh auth login`): `gh api repos/Redeziim/Gerenciador/contents/install.sh -H 'Accept: application/vnd.github.raw' | bash`, ou clone e rode `./install.sh`.
 
-Depois: entre nas contas (`claude` e `codex login`) e, na pasta de qualquer projeto git, rode `gerenciador`.
+**Depois de instalar:**
 
-## Quem faz o quê
-
-| Agente | Papel |
-| --- | --- |
-| Claude | Gerente. Planeja, distribui, revisa, faz merge e também faz código pesado. |
-| Codex | Código pesado com escopo fechado, em paralelo. Recebe as tarefas do Claude quando o token do Claude está acabando. |
-| Gemini | Tarefas leves e geração de imagem com o Nano Banana. Áudio e vídeo ainda não estão montados. |
-
-## Peças
-
-| Peça | Função |
-| --- | --- |
-| `agentes/scripts/tarefa.sh` | Abre worktree e branch `<agente>/<nome>`, reserva arquivos, espera dependências, roda o Codex ou o Gemini em segundo plano e faz o commit ao final. |
-| `agentes/scripts/quadro.sh` | Quadro de tarefas: o Claude reserva e solta os arquivos dele, confere se um caminho está livre e cancela frentes. |
-| `agentes/scripts/status.sh` | Mostra o quadro: tarefas, reservas, dependências, arquivos tocados e sobreposições. |
-| `agentes/scripts/iniciar.sh` | Atalho `gerenciador`: abre o Claude e o painel lado a lado no tmux, instalando o gerenciador no projeto se faltar. Em sessão nova, pergunta o modelo e o nível do gerente; Enter mantém o último usado, e `--modelo`/`--nivel` pulam a pergunta. Se a sessão já existe, volta a ela como está. |
-| `agentes/scripts/gerente-config.sh` | Mostra o quadro de agentes e níveis do projeto e permite definir o gerente e os níveis do Codex e dos subagentes Claude. |
-| `agentes/scripts/painel.sh` | Painel ao vivo no terminal, no estilo da CLI do Claude: o que cada agente está fazendo agora, em quais arquivos está mexendo, o modelo, o tempo e o resultado. |
-| `agentes/scripts/abrir-painel.sh` | Reabre o painel ao lado do Claude na sessão do tmux; é o que o `/painel` usa. |
-| `agentes/scripts/ui.sh` | Inicia a interface web do projeto na porta 8765 (ou na porta indicada). |
-| `agentes/ui/` | Interface web: `servidor.py` serve a API e `index.html` mostra o painel. |
-| `agentes/scripts/esperar.sh` | Espera uma frente terminar e mostra status, commit, arquivos e resumo. |
-| `agentes/scripts/imagem.sh` | Gera imagem com o Nano Banana pela API do Gemini. |
-| `agentes/scripts/pedir-ao-claude.sh` | Manda um pedido para o Claude gerente rodar sozinho no projeto (`claude -p`), sem terminal aberto. É o que o celular usa. |
-| `agentes/scripts/projetos.sh` | Apelidos de projeto (`demo` em vez do caminho inteiro). Todos os scripts aceitam o apelido. |
-| `agentes/openclaw/` | Skill do OpenClaw para controlar tudo pelo celular, pelo Telegram. |
-| `agentes/instalar-openclaw.sh` | Instala a skill no OpenClaw e registra o apelido do projeto. |
-| `agentes/scripts/passar-para-codex.sh` | Passa ao Codex a tarefa que o Claude estava fazendo, levando o trabalho ainda não commitado. |
-| `agentes/scripts/codex-config.sh` | Mostra ou troca o modelo e o raciocínio padrão do Codex (`listar` mostra os que existem). É o que os comandos `/codex` usam. |
-| `agentes/scripts/uso-codex.sh` | Mostra o uso do Codex (janela de 5 horas e semana) no painel. |
-| `agentes/scripts/interativo.sh` | Painel interativo (o `painel.sh` abre este por padrão): escolhe a tarefa, cancela, limpa do quadro e vê o log. |
-| `agentes/scripts/atualizar-agentes.sh` | Confere (e instala) atualizações do Claude Code, do Codex e do Gemini. O hook de início de sessão usa `avisar`. |
-| `agentes/claude-commands/` | Comandos de barra `/gerente`, `/codex` e `/atualizar-agentes`; o `instalar.sh` gera também um `/codex-<modelo>` por modelo. |
-| `agentes/hooks/statusline.sh` | Linha de status do Claude Code com contexto e cota usados. Grava os números para o hook. |
-| `agentes/hooks/aviso-token.sh` | Hook que injeta o AVISO DE TOKEN quando o contexto passa de 85% ou a cota passa de 90%. |
-| `agentes/hooks/guarda-arquivos.sh` | Hook que impede o Claude de editar um arquivo reservado pelo Codex ou pelo Gemini, e registra no quadro o que o Claude edita. |
-| `agentes/claude-agents/codex.md`, `gemini.md` | Subagentes do Claude que chamam os scripts. |
-| `agentes/GERENTE.md` | Regras do Claude como gerente, importadas no `CLAUDE.md` do projeto. |
-| `agentes/instalar.sh` | Liga tudo isso a um projeto. |
-| `agentes/testes/testar.sh` | Teste ponta a ponta com agentes simulados. Roda no CI em Linux e macOS. |
-
-## Requisitos
-
-- `bash`, `git`, `jq`, `curl` e `base64`. Funciona em Linux e macOS, inclusive com o bash 3.2 que vem no macOS. No Windows, rode tudo dentro do WSL (Ubuntu), com o projeto guardado dentro do Ubuntu e não em `/mnt/c`.
-- Codex CLI (`codex exec`) logado. O modelo e o raciocínio vêm do `~/.codex/config.toml`.
-- Gemini CLI (`gemini -p`) logada. O modelo pode ser escolhido com `GEMINI_MODELO`.
-- `GEMINI_API_KEY` para gerar imagem. O modelo padrão é `gemini-2.5-flash-image` e pode ser trocado com `GEMINI_MODELO_IMAGEM`. Os scripts procuram a chave primeiro no ambiente e depois em `~/.config/agentes/env` (passo 3 da instalação; o motivo está em "Problemas ao rodar as tarefas").
-
-## Instalação manual
-
-Se preferir fazer cada passo à mão (o instalador acima já faz isto). Passo a passo no Ubuntu ou Debian (no Windows, dentro do Ubuntu do WSL; veja a nota no fim):
+1. Entre nas contas: rode `claude` (e saia com `/exit`) e `codex login`.
+2. Vá para a pasta de um projeto que já seja um repositório git (por exemplo `~/projetos/meu-projeto`) e rode:
 
 ```bash
-# 1. Programas básicos e Node 24 (o OpenClaw precisa do 24)
-sudo apt update && sudo apt install -y git jq curl gh tmux
-curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# 2. Claude Code, Codex e Gemini
-sudo npm install -g --allow-scripts=@anthropic-ai/claude-code,@github/keytar \
-  @anthropic-ai/claude-code @openai/codex @google/gemini-cli
-
-# 3. Chave do Gemini (crie em https://aistudio.google.com/apikey). Cole quando pedir; ela não aparece na tela.
-mkdir -p ~/.config/agentes
-read -rsp "Cole a chave: " K && echo "export GEMINI_API_KEY='$K'" > ~/.config/agentes/env && unset K
-chmod 600 ~/.config/agentes/env
-echo '[ -f ~/.config/agentes/env ] && . ~/.config/agentes/env' >> ~/.bashrc   # para o `gemini` interativo
-source ~/.bashrc
-echo ${#GEMINI_API_KEY}   # tem que dar entre 40 e 60
-
-# 4. Logins
-claude          # entra na conta; depois saia com /exit
-codex login
-gemini          # escolha "Use Gemini API Key"
-gh auth login   # GitHub.com, HTTPS, Y, Login with a web browser
-
-# 5. Gerenciador e projeto
-git clone https://github.com/Redeziim/Gerenciador.git ~/.gerenciador
-~/.gerenciador/agentes/instalar.sh ~/projetos/meu-projeto   # um repositório git seu
-~/.gerenciador/agentes/testes/testar.sh   # a última linha tem que ser "tudo certo"
+gerenciador
 ```
 
-Depois abra o Claude Code no projeto e, se ele abrir no Haiku, troque com `/model`. O jeito mais prático é o atalho `gerenciador`, que abre o Claude e o painel ao vivo lado a lado:
+No Windows, tudo roda dentro do **WSL** (um Linux que roda dentro do Windows). Guarde o projeto dentro do Ubuntu (`~/projetos/...`), não em `/mnt/c`.
 
-```bash
-gerenciador                  # no projeto em que você está
-gerenciador ~/projetos/meu-projeto   # ou uma pasta / apelido de projeto
-```
+## Primeiros passos
 
-Ele usa o `tmux`: Claude à esquerda, painel à direita (o mouse funciona para trocar de lado). `/exit` no Claude fecha tudo; `Ctrl+b` e depois `d` deixa a sessão rodando em segundo plano, e o mesmo comando volta para ela. Se o projeto ainda não tem o gerenciador, ele instala sozinho. O atalho é criado pelo `instalar.sh` em `~/.local/bin`; se `gerenciador` não for encontrado, rode `~/.gerenciador/agentes/scripts/iniciar.sh` direto. O instalador pode rodar de novo sem duplicar nada. No Fedora, troque o `apt` por `dnf` e use `https://rpm.nodesource.com/setup_24.x`.
+Ao abrir o `gerenciador`, o terminal se divide em duas partes (isso usa o **tmux**, um programa que divide o terminal em painéis):
 
-**No Windows:** no PowerShell como administrador, rode `wsl --install -d Ubuntu`, reinicie e abra **Ubuntu** pelo menu Iniciar. O terminal pode abrir em `/mnt/c/WINDOWS/system32`: rode `cd ~` antes de tudo. Para abrir outro terminal do Ubuntu, use o menu Iniciar ou `wsl ~` num PowerShell.
+- **À esquerda**, o Claude gerente, onde você conversa.
+- **À direita**, o painel, que mostra ao vivo o que cada agente está fazendo.
 
-### Problemas na instalação
+Numa sessão nova, ele pergunta o **modelo** e o **nível** do gerente. O nível é o quanto a IA "pensa" antes de responder: mais alto é melhor e mais lento. Aperte Enter para manter o último usado (o sugerido é `opus` com `high`).
 
-| Mensagem ou sintoma | O que fazer |
-| --- | --- |
-| `npm warn install-scripts ... not yet covered by allowScripts` | Faltou o `--allow-scripts` do passo 2. Sem ele o Claude Code não termina de instalar. |
-| `EACCES: permission denied` no npm | Faltou o `sudo`. Não precisa atualizar o npm quando ele sugerir. |
-| Gemini: `This client is no longer supported for Gemini Code Assist for individuals` | O login com conta Google pessoal acabou. Use `Use Gemini API Key`, com a chave do passo 3. |
-| `unexpected EOF while looking for matching` ao abrir o terminal | A linha da chave no `~/.bashrc` ficou quebrada. Limpe com `sed -i '/GEMINI_API_KEY/d; /^AQ\./d' ~/.bashrc`, confira com `bash -n ~/.bashrc && echo ok` e refaça o passo 3. |
-| `echo ${#GEMINI_API_KEY}` dá centenas | Entrou texto a mais com a chave. Limpe como acima e copie a chave pelo botão de copiar do AI Studio. |
-| `fatal: Authentication failed` no `git clone` | O repositório é privado. Rode `gh auth login` e clone de novo. |
-| A chave apareceu num chat ou print | Apague em aistudio.google.com/apikey e crie outra. |
-| Ubuntu não aparece no menu Iniciar (Windows) | `wsl --install -d Ubuntu` no PowerShell (Admin) e reinicie. Confira com `wsl -l -v`. |
+Exemplo de pedido:
 
-### Problemas ao rodar as tarefas
+> Crie uma tela de login e corrija os textos do menu.
 
-Os dois primeiros apareceram em uso real no Linux e foram reproduzidos e corrigidos. Os dois últimos são específicos do Windows/WSL e não foram reproduzidos (não há WSL na máquina onde isto foi investigado): a tabela serve para reconhecer o sintoma.
+O que acontece: o gerente mostra o quadro de agentes e níveis, divide o pedido em duas tarefas (por exemplo, `tela-login` para o Codex e `textos-menu` para o Sonnet), diz numa linha quem fará cada uma e dispara. Você acompanha no painel. Quando as tarefas terminam, o gerente revisa e junta o resultado.
 
-| Sintoma | Causa | O que fazer |
+Para sair, digite `/exit` (fecha tudo). Para deixar a sessão rodando em segundo plano, aperte `Ctrl+b` e depois `d`; rodar `gerenciador` de novo volta para ela. O mouse funciona para trocar entre o Claude e o painel.
+
+## Quem faz o quê (padrões)
+
+| Papel | Quem | Observação |
 | --- | --- | --- |
-| Tarefa do Gemini fica `falhou` na hora; o log tem `Gemini CLI is not running in a trusted directory` e `código 55`. | Todo worktree é uma pasta nova, e o Gemini CLI recusa pastas não confiáveis em modo sem terminal (e ainda desliga o `--yolo`). | Corrigido: o `tarefa.sh` roda o Gemini com `GEMINI_CLI_TRUST_WORKSPACE=true`. Atualize o repositório (`git pull`). |
-| `erro: defina GEMINI_API_KEY` no `imagem.sh`, embora a chave esteja no `~/.bashrc`. | O `.bashrc` sai logo no começo em shells não interativos, que são os do Claude Code, do OpenClaw e dos scripts em segundo plano. A linha `export` nunca é lida. | Corrigido: os scripts leem `~/.config/agentes/env`. Mova a chave: `mkdir -p ~/.config/agentes && grep '^export GEMINI_API_KEY' ~/.bashrc > ~/.config/agentes/env && chmod 600 ~/.config/agentes/env`. Depois pode apagar a linha antiga do `~/.bashrc`. |
-| `bad interpreter: /usr/bin/env: 'bash\r'` ou `$'\r': command not found` (Windows). | O repositório foi clonado pelo Git do Windows, que troca `\n` por `\r\n` nos scripts. | O `.gitattributes` força `\n` nos `.sh`. Clone de novo **dentro do Ubuntu** (`git clone` no terminal do WSL). Para consertar um clone antigo: `find ~/.gerenciador -name '*.sh' -exec sed -i 's/\r$//' {} +`. |
-| `codex`, `gemini` ou `claude` "não encontrado", ou abre o programa do Windows no WSL. | O WSL herda o `PATH` do Windows, e `command -v` acha o `.cmd`/`.exe` de fora, ou a CLI foi instalada só no Windows. | Instale as CLIs dentro do Ubuntu (passo 2). `command -v codex` tem que começar com `/usr` ou `/home`, nunca com `/mnt/c`. |
+| Gerente (também escreve o prompt de cada tarefa) | **Opus** | O nível é escolhido ao abrir; o sugerido é `high`. |
+| Quem executa as tarefas | **Claude Sonnet** e **Codex sol** | Veja os níveis abaixo. |
+| Gemini | Desligado | Só entra se você citá-lo pelo nome, ou pedir uma imagem com o Nano Banana. |
 
-Se uma tarefa fica `falhou`, o motivo está no log: `painel.sh <projeto> --log <nome>` ou `<projeto>/.git/agentes/logs/<nome>.log`.
+"Codex sol" é o modelo `-sol` mais novo que o Codex tiver. Se você já escolheu outro modelo do Codex, vale o que você escolheu.
 
-## Uso
-
-O Claude faz isso sozinho pelos subagentes, mas os scripts também funcionam direto:
-
-```bash
-S=~/.gerenciador/agentes/scripts
-
-# Codex na API, Gemini nos textos, cada um com seus arquivos reservados
-$S/tarefa.sh codex . api-login --reservar src/api/login "Crie o endpoint de login ..."
-$S/tarefa.sh gemini . textos-menu --reservar 'src/menu/*.json' "Revise os textos do menu"
-
-# A tela precisa da API pronta: espera e parte do resultado dela
-$S/tarefa.sh codex . tela-login --depois api-login --reservar src/tela/login "Crie a tela de login ..."
-
-# O Claude reserva o que ele mesmo vai mexer, e solta ao terminar
-$S/quadro.sh reservar . claude-rotas src/rotas.ts
-$S/quadro.sh liberar . claude-rotas
-
-# Raciocínio e modelo do Codex (sem a opção vale o do ~/.codex/config.toml)
-$S/tarefa.sh codex . ajuste-texto --raciocinio low --reservar README.md "Corrija os erros de português do README"
-$S/tarefa.sh codex . motor-sync --raciocinio xhigh --modelo <nome-do-modelo> --reservar src/sync "Reescreva o motor de sincronização ..."
-
-$S/painel.sh .                 # painel ao vivo (Ctrl+C para sair)
-$S/painel.sh . --log api-login # log de uma tarefa
-$S/esperar.sh . api-login      # espera e mostra o resultado
-$S/quadro.sh cancelar . textos-menu
-
-$S/imagem.sh "mapa de fantasia, estilo aquarela" assets/mapa.png
-$S/passar-para-codex.sh . terminar-login notas.md src/login
-```
-
-Para ver o painel enquanto trabalha com o Claude, use o atalho `gerenciador` (acima) ou deixe `painel.sh` aberto em outra aba do terminal.
-
-### Interface web
-
-Abra com `agentes/scripts/ui.sh <projeto>` e visite `http://127.0.0.1:8765`. A interface mostra agentes e níveis, acompanha o quadro ao vivo, permite alterar níveis e cancelar tarefas. O servidor escuta só em `127.0.0.1`.
-
-### Como ler o painel
-
-```
-✻ Agentes · meu-projeto                               10:40:27
-  1 rodando · 1 aguardando · 3 concluída(s)
-
-✶ codex · api-login                                    2min       ← ● animada = trabalhando
-  ⎿ Crie o endpoint de login com JWT                              ← o objetivo da tarefa
-  ⎿ Rodando: npm test                                             ← o que está fazendo agora
-  ⎿ Mexendo em  src/api/login.ts +42 −3                           ← onde está mexendo (linhas)
-                src/api/auth.ts novo
-  ⎿ gpt-6.1-sol · raciocínio xhigh · reserva src/api              ← modelo e arquivos reservados
-
-◌ codex · tela-login                              aguardando    ← espera a api-login terminar
-✓ gemini · textos-menu                      concluída · 18s     ← pronto: resumo, commit e branch
-✗ codex · migracao                              falhou · 3min   ← falhou: a linha de erro do log
-```
-
-- **`✶`** (gira) rodando, **`◌`** aguardando outra tarefa, **`✓`** concluída, **`✗`** falhou, foi interrompida ou ficou bloqueada, **`⊘`** cancelada.
-- **"Mexendo em"** vem do `git diff` do worktree da tarefa, ao vivo. `⚠ fora da reserva` avisa quando o agente mexeu num arquivo que não estava reservado para ele, e `⚠ conflito` aparece no fim quando dois agentes tocam o mesmo arquivo.
-- **"Rodando: ..."** vem do log do Codex (último comando ou edição). O Gemini em modo sem terminal só escreve no final, então para ele o painel mostra os arquivos mudando, não o comando atual.
-- O log completo de uma tarefa: `painel.sh <projeto> --log <nome>`.
-
-### Modelo e raciocínio do Codex
-
-O Codex **não** ajusta o raciocínio sozinho: sem indicação ele usa o do `~/.codex/config.toml` (aqui `xhigh`, o mais lento e caro). A adaptação à dificuldade é feita pelo subagente `codex` do Claude, que escolhe `--raciocinio` pela tarefa:
+**Nível de cada tarefa:**
 
 | Nível | Quando |
 | --- | --- |
-| `low` | mudança mecânica e curta: renomear, ajustar texto ou configuração, um arquivo pequeno |
-| `medium` | tarefa comum dentro de um módulo, com verificação simples |
-| `high` | funcionalidade em vários arquivos, refatoração, bug difícil de achar |
-| `xhigh` | arquitetura, concorrência, segurança, migração de dados, ou quando o `high` já falhou |
+| `medium` | tarefa comum |
+| `high` | tarefa difícil |
+| `xhigh` | tarefa crítica (arquitetura, segurança, migração de dados) ou quando o `high` falhou |
 
-Para forçar outro nível ou um modelo específico, peça ao Claude ("use o Codex com raciocínio low") ou use `--raciocinio` e `--modelo` no `tarefa.sh`. `--modelo` também vale para o Gemini. Para mudar o padrão de tudo, edite `model` e `model_reasoning_effort` no `~/.codex/config.toml`.
+**Quem pega o quê:**
 
-### Distribuição padrão
+- **Codex sol:** código com escopo fechado, que pode andar em paralelo.
+- **Sonnet:** texto, documentação, revisão e o que depende do contexto da conversa.
 
-O Claude gerente classifica cada tarefa antes de distribuir: texto e ajustes curtos vão para o Codex `low` (ou para o próprio gerente se forem menores que o pedido ao agente); tarefas comuns de um módulo usam `medium`; vários arquivos, refatoração e bugs difíceis usam `high`; arquitetura, concorrência, segurança, migração de dados ou falha do `high` usam `xhigh` ou um subagente Claude `opus`. Conversas, dúvidas, leitura, decisões de design e revisão ficam com o gerente ou com um subagente Claude. O Gemini só entra quando o usuário o citar, inclusive ao pedir imagem com o Nano Banana. A escolha de agente e nível aparece numa linha por tarefa antes de começar.
+Conversas, dúvidas e leituras o gerente responde sozinho, sem chamar agente.
 
-O quadro de agentes e níveis do projeto aparece com `/gerente`. Para mudar o padrão, use `/gerente gerente <modelo> [nível]`, `/gerente codex <nível|auto>` ou `/gerente claude <modelo|auto> [nível]`. A troca do gerente vale na próxima abertura do `gerenciador`; na sessão atual, use `/model` e `/effort`.
+**Tudo isso muda se você pedir, a qualquer momento.** Veja "Como configurar".
 
-### Economizar contexto
+## Como uma tarefa funciona
 
-- `tarefa.sh ... <mesmo-nome> --continuar "<o que mudar>"` segue uma tarefa já terminada: o Codex (`exec resume`) e o Gemini (`--resume`) retomam a própria conversa no mesmo worktree, sem reler o projeto, e só o novo pedido é enviado.
-- Se o projeto tiver `.claude/contexto-projeto.md`, ele entra no pedido de toda tarefa nova. O Codex lê o `AGENTS.md` sozinho; o Gemini recebe o `AGENTS.md` quando não há briefing.
-- O Claude deve falar de novo com um subagente já chamado por `SendMessage`, e não abrir outro (as regras estão em `GERENTE.md`).
+1. **Você faz o pedido** ao gerente, em português normal.
+2. **O gerente mostra o quadro** com os agentes e os níveis, divide o pedido em tarefas de escopo fechado e diz numa linha quem faz cada uma. Ele segue sem esperar, mas você pode corrigir.
+3. **Cada tarefa ganha a sua cópia do projeto.** Essa cópia se chama *worktree*: uma pasta com os arquivos do projeto, ligada ao mesmo repositório. Junto vem uma *branch*, uma linha própria de histórico (por exemplo `codex/tela-login`). Assim ninguém sobrescreve o trabalho do outro.
+4. **Reserva de arquivos.** Cada tarefa declara quais arquivos ou pastas vai mexer. Se outra tarefa ativa já reservou algum, a nova não abre. O gerente também reserva o que ele mesmo vai editar, e um *hook* (verificação automática) o impede de editar o que está reservado por um agente.
+5. **Dependências.** Se uma tarefa precisa do resultado de outra (a tela precisa da API pronta), ela fica `aguardando`, começa sozinha quando a outra termina e já parte do resultado dela. Se a outra falhar, ela fica `bloqueada`.
+6. **O agente trabalha** na cópia dele e, ao terminar, o resultado é salvo num *commit* (um registro permanente das mudanças) na branch da tarefa.
+7. **O gerente revisa e faz o merge.** Ele olha o que mudou (`git diff`) e depois faz o *merge*, que é juntar a branch da tarefa na branch principal do projeto.
+8. **Para descartar** uma tarefa que não serviu, use a tecla `d` no painel interativo, ou `git worktree remove <pasta>` e `git branch -D <agente>/<nome>`.
 
-### Comandos de barra e atualizações
+**Se o token estiver acabando.** *Token* é a unidade de consumo da IA: cada conversa gasta um pouco do seu limite. Quando o contexto passa de 85% ou a cota passa de 90%, o gerente recebe um AVISO DE TOKEN. Ele para de começar trabalho novo, escreve notas do que já foi feito e do que falta, e passa a tarefa ao Codex (`passar-para-codex.sh`). O Codex continua numa branch própria, a partir do estado atual, inclusive do que ainda não tinha sido salvo. O gerente avisa você com qual nome a tarefa foi passada.
 
-`instalar.sh` coloca em `.claude/commands/` os comandos abaixo. Ao abrir uma sessão, um hook avisa se o Claude Code, o Codex ou o Gemini têm versão nova (confere no máximo a cada 6 horas).
+## Como configurar
 
-| Comando | Função |
+Os níveis são `low`, `medium`, `high`, `xhigh` e `max`.
+
+**Ao abrir:**
+
+```bash
+gerenciador --modelo opus --nivel high      # pula a pergunta
+gerenciador ~/projetos/meu-projeto          # outra pasta (ou apelido de projeto)
+```
+
+**Dentro do Claude:**
+
+```text
+/gerente                          mostra o quadro de agentes e níveis
+/gerente gerente opus high        gerente: modelo e nível
+/gerente gerente nivel xhigh      troca só o nível do gerente
+/gerente codex high               fixa o nível do Codex
+/gerente codex auto               volta a escolha por tarefa
+/gerente claude sonnet medium     fixa modelo e nível dos subagentes Claude
+/gerente claude auto              volta a escolha por tarefa
+/codex                            mostra o modelo e o raciocínio do Codex
+/codex listar                     modelos disponíveis
+/codex gpt-6.1-sol medium         troca o modelo e o nível do Codex
+/model e /effort                  trocam o modelo e o nível do gerente nesta sessão
+```
+
+Também existe um comando `/codex-<modelo>` para cada modelo do Codex (por exemplo `/codex-gpt-6.1-sol`). A troca do gerente por `/gerente` vale na **próxima abertura**; na sessão aberta, use `/model` e `/effort`.
+
+Ou simplesmente peça, em linguagem natural: "use o Codex com xhigh nesta tarefa", "faça essa com o Sonnet", "use o Gemini para revisar os textos".
+
+| Quero... | Faça... |
 | --- | --- |
-| `/gerente` | Mostra ou troca o gerente e os níveis dos agentes do projeto. |
-| `/painel` | Reabre o painel de agentes ao lado do Claude, se tiver sido fechado (tmux). |
-| `/codex` | Mostra ou troca o modelo e o raciocínio padrão do Codex. |
-| `/codex-<modelo>` | Seleciona um modelo do cache do Codex; rode o instalador de novo quando surgir modelo novo. |
-| `/atualizar-agentes` | Confere atualizações; `/atualizar-agentes atualizar` instala. |
+| Outro modelo ou nível para o gerente agora | `/model` e `/effort` |
+| Outro gerente na próxima abertura | `/gerente gerente <modelo> [nível]` |
+| Que o Codex use sempre o mesmo nível | `/gerente codex <nível>` |
+| Que o gerente escolha o nível por tarefa | `/gerente codex auto` e `/gerente claude auto` |
+| Trocar o modelo do Codex | `/codex <modelo>` ou `/codex-<modelo>` |
+| Usar o Gemini | Cite-o no pedido ("use o Gemini para...") |
+| Um nível só numa tarefa | Peça ao gerente: "essa tarefa com xhigh" |
 
-Para atualizar, o Codex e o Gemini precisam do prefixo do npm numa pasta sua, por exemplo `npm config set prefix ~/.local`.
+## Painel e interface web
 
-### Vários projetos
+- **`/painel`** abre o painel ao lado do Claude (ou fecha e abre de novo, se já estava aberto).
+- **Painel interativo.** Teclas: `↑` `↓` escolhem a tarefa; `c` cancela; `x` tira uma tarefa encerrada do quadro; `d` tira e apaga também a cópia e a branch (pede confirmação); `X` limpa todas as encerradas; `l` abre o log; `r` atualiza; `q` sai.
+- **Símbolos:** `✶` rodando, `◌` aguardando, `✓` concluída, `✗` falhou ou bloqueada, `⊘` cancelada. O painel também avisa `⚠ fora da reserva` (o agente mexeu num arquivo que não reservou) e `⚠ conflito` (dois agentes no mesmo arquivo).
+- **Interface web.** Rode `~/.gerenciador/agentes/scripts/ui.sh <projeto>` e abra `http://127.0.0.1:8765` no navegador. Ela mostra agentes e níveis, acompanha o quadro ao vivo e permite mudar níveis e cancelar tarefas. Só funciona no seu computador.
 
-`gerenciador <pasta>` funciona em qualquer repositório git (por exemplo `gerenciador ~/outro-projeto`). Cada projeto tem o próprio quadro, em `<projeto>/.git/agentes/`, e a própria sessão do tmux. Toda vez que abre uma sessão nova o atalho reinstala o gerenciador no projeto, então ele sempre usa as instruções mais novas deste repositório. Se o projeto já tiver subagentes próprios chamados `codex` ou `gemini`, o instalador escreve por cima;
+## Comandos úteis
 
-## Pelo celular (OpenClaw + Telegram)
+Os scripts ficam em `~/.gerenciador/agentes/scripts`. O gerente os usa sozinho, mas você também pode.
 
-O [OpenClaw](https://docs.openclaw.ai) roda no computador (Linux, macOS ou WSL no Windows) e conversa com você pelo Telegram. A skill `gerenciador-agentes` ensina o OpenClaw a usar os scripts daqui: você escreve no celular, ele roda o script certo e responde.
-
-### Ligar (uma vez, no computador)
-
-1. Instale o OpenClaw (precisa do Node 24.16 ou mais novo) e deixe ele rodando como serviço:
-   ```bash
-   curl -fsSL https://openclaw.ai/install.sh | bash
-   openclaw onboard --install-daemon
-   ```
-   No onboarding, escolha o modelo que o OpenClaw vai usar para conversar.
-2. Crie o bot: no Telegram, fale com `@BotFather`, mande `/newbot` e copie o token.
-3. Ligue o bot ao OpenClaw:
-   ```bash
-   openclaw channels add --channel telegram --token <token-do-bot>
-   ```
-4. Mande qualquer mensagem para o seu bot. Ele responde com um código de pareamento. Aprove:
-   ```bash
-   openclaw pairing approve telegram <código>
-   ```
-   O código vale por uma hora. Depois disso, só a sua conta fala com o bot.
-5. Instale a skill e dê um apelido ao projeto (o projeto já precisa ter passado pelo `instalar.sh`):
-   ```bash
-   ~/.gerenciador/agentes/instalar-openclaw.sh demo ~/projetos/meu-projeto
-   openclaw gateway restart
-   ```
-   Para mais projetos: `~/.gerenciador/agentes/scripts/projetos.sh adicionar <apelido> <pasta>`.
-6. Confira: `openclaw skills info gerenciador-agentes` deve mostrar `Ready`, e `openclaw channels status --probe` deve mostrar o Telegram ligado.
-
-O computador precisa ficar ligado, com o OpenClaw rodando, para o bot responder.
-
-### Usar (no celular)
-
-Escreva para o bot em português normal. Exemplos:
-
-| Mensagem | O que acontece |
+| Script | Para quê |
 | --- | --- |
-| `status demo` | Uma linha por tarefa: quem está fazendo o quê e há quanto tempo. |
-| `pede ao Claude: arruma o bug do login no demo` | O Claude gerente roda sozinho no projeto, divide o trabalho e chama o Codex ou o Gemini se precisar. O bot devolve o nome do pedido. |
-| `resultado pedido-1016-143205` | Status, arquivos mudados e o resumo de quem fez. |
-| `manda o Codex criar a tela de login no demo, só em src/login` | Tarefa direto para o Codex, com a pasta reservada. |
-| `manda o Gemini revisar os textos do README do demo` | Tarefa leve direto para o Gemini. |
-| `faz uma imagem de um mapa de masmorra para o demo` | Gera com o Nano Banana e manda a imagem no chat (precisa de `GEMINI_API_KEY`). |
-| `cancela login-google` | O bot confirma antes e para a tarefa. |
-| `quais projetos?` | Lista os apelidos. |
+| `status.sh <projeto>` | Mostra o quadro: tarefas, reservas e dependências. |
+| `painel.sh <projeto>` | Painel ao vivo no terminal. Com `--log <nome>`, mostra o log de uma tarefa. |
+| `esperar.sh <projeto> <nome>` | Espera uma tarefa terminar e mostra o resultado. |
+| `tarefa.sh <codex\|gemini> <projeto> <nome> --reservar <caminho> "<tarefa>"` | Dispara uma tarefa. `--continuar` segue uma tarefa já terminada, sem reler o projeto. |
+| `quadro.sh cancelar <projeto> <nome>` | Cancela uma tarefa. |
+| `gerente-config.sh <projeto>` | Mostra o quadro de agentes e níveis. |
+| `imagem.sh "<descrição>" <saida.png>` | Gera uma imagem com o Nano Banana (precisa de `GEMINI_API_KEY`). |
+| `atualizar-agentes.sh` | Confere (e instala) atualizações do Claude, do Codex e do Gemini. |
 
-Merge, push e apagar branches ficam para o computador: o bot não faz isso.
+`<projeto>` pode ser uma pasta, um apelido (`projetos.sh adicionar <apelido> <pasta>`) ou `.`.
 
-### Segurança
+Se o projeto tiver o arquivo `.claude/contexto-projeto.md` (stack, pastas, como rodar os testes), ele entra no pedido de toda tarefa nova e poupa tempo dos agentes.
 
-- O texto que você escreve vai para os scripts na variável `PEDIDO`, nunca dentro do comando, para uma mensagem não virar comando no seu computador.
-- Só a conta pareada fala com o bot. Não troque o `dmPolicy` para aberto.
-- O Claude chamado pelo celular roda com `--permission-mode acceptEdits` e só pode rodar os scripts dos agentes e `git status/diff/log`. Para mudar isso, defina `AGENTES_CLAUDE_ARGS`.
-- Por padrão o OpenClaw roda comandos sem pedir confirmação. Para ele só poder rodar os scripts daqui:
-  ```bash
-  openclaw approvals allowlist add "$HOME/Gerenciador/agentes/scripts/*.sh"
-  openclaw config set tools.exec.mode allowlist
-  openclaw gateway restart
-  ```
-  Isso vale para todo o OpenClaw, não só para esta skill.
+## Pelo celular (opcional)
 
-### Se algo não funcionar
+O [OpenClaw](https://docs.openclaw.ai) roda no computador e conversa com você pelo Telegram. A skill `gerenciador-agentes` ensina o OpenClaw a usar os scripts daqui. O computador precisa ficar ligado.
 
-- O bot não responde: `openclaw gateway status` e `openclaw doctor`.
-- "comando 'claude' (ou 'codex', 'gemini') não encontrado": o serviço do OpenClaw roda com um `PATH` mínimo. Veja onde a CLI está com `command -v claude` e acrescente a pasta dela, por exemplo `openclaw config set tools.exec.pathPrepend '["/home/SEU-USUARIO/.local/bin"]'`, depois `openclaw gateway restart`.
-- "o pedido ... ainda está rodando": só um pedido ao Claude por projeto de cada vez. Espere ou cancele.
+```bash
+curl -fsSL https://openclaw.ai/install.sh | bash
+openclaw onboard --install-daemon          # precisa do Node 24.16 ou mais novo
+openclaw channels add --channel telegram --token <token-do-bot>   # token do @BotFather
+openclaw pairing approve telegram <código> # código que o bot manda na primeira mensagem
+~/.gerenciador/agentes/instalar-openclaw.sh demo ~/projetos/meu-projeto
+openclaw gateway restart
+```
 
-## Como os agentes não se atropelam
+Depois, escreva para o bot em português normal: `status demo`, `pede ao Claude: arruma o bug do login no demo`, `resultado <pedido>`, `cancela <tarefa>`, `faz uma imagem de um mapa de masmorra para o demo`. Merge, push e apagar branches ficam para o computador.
 
-- **Reserva.** Cada tarefa diz quais arquivos, pastas ou padrões vai tocar. Se outra tarefa ativa já reservou um deles, a nova tarefa não abre. As reservas são soltas quando a tarefa termina, falha ou é cancelada.
-- **Dependência.** Com `--depois`, a tarefa fica `aguardando`, começa sozinha quando a outra termina e já parte do resultado dela. Se a outra falhar, ela fica `bloqueada`.
-- **Guarda do Claude.** Um hook bloqueia o Claude de editar arquivos reservados pelo Codex ou pelo Gemini, e os worktrees deles. O que o Claude edita aparece no painel como "sessão do Claude".
-- **Aviso.** O quadro marca arquivos tocados fora da reserva e arquivos tocados por mais de uma tarefa.
+Segurança: só a conta pareada fala com o bot (não troque o `dmPolicy` para aberto); o texto vai para os scripts por variável, nunca dentro do comando; o Claude chamado pelo celular só roda os scripts dos agentes e `git status/diff/log`. Para o OpenClaw só poder rodar os scripts daqui: `openclaw approvals allowlist add "$HOME/.gerenciador/agentes/scripts/*.sh"` e `openclaw config set tools.exec.mode allowlist` (vale para todo o OpenClaw).
 
-Os registros e logs ficam em `<projeto>/.git/agentes/`, e os worktrees em `<pasta-pai>/.agentes-<projeto>/<nome>`.
+Se o bot não responde, rode `openclaw gateway status` e `openclaw doctor`. Se aparecer "comando 'claude' não encontrado", acrescente a pasta da CLI ao PATH do serviço: `openclaw config set tools.exec.pathPrepend '["/home/SEU-USUARIO/.local/bin"]'` e `openclaw gateway restart`.
 
-## Decisões
+## Problemas comuns
 
-- **Worktree por tarefa.** Cada frente tem pasta e branch próprias, para dois agentes não editarem o mesmo arquivo ao mesmo tempo.
-- **Worktrees fora do `.git`.** O sandbox `workspace-write` do Codex bloqueia escrita em caminhos dentro de `.git`.
-- **Commit feito pelo script, não pelo agente.** O sandbox do Codex não escreve nos metadados git do repositório principal.
-- **Subagente Claude como ponte.** O gerenciador de agentes do Claude só lista sessões e subagentes do Claude, então o Codex e o Gemini entram como subagentes que chamam os scripts.
-- **Aviso de token por hook.** A linha de status do Claude Code recebe o uso de contexto e de cota. O hook lê esses números a cada prompt e a cada ferramenta. Sem a linha de status (modo `-p`), ele estima o contexto pelo transcript. A cota só aparece para assinantes Pro/Max.
-- **Repasse sem mexer na pasta do Claude.** `passar-para-codex.sh` fotografa o estado atual num commit solto, com um índice temporário, e o Codex parte dele.
-- **Quadro em arquivos JSON dentro do `.git`.** Fica fora dos commits, não precisa de servidor e é lido por todos os scripts. Uma trava simples (`mkdir`) evita que duas tarefas reservem o mesmo arquivo ao mesmo tempo.
+**Na instalação**
 
-## Limites
+| Sintoma | O que fazer |
+| --- | --- |
+| `gerenciador: command not found` | Abra um terminal novo. Se persistir, rode `~/.gerenciador/agentes/scripts/iniciar.sh` direto. |
+| `EACCES: permission denied` no npm | Faltou o `sudo`. |
+| `npm warn install-scripts ... allowScripts` | O Claude Code não terminou de instalar. Rode o instalador de novo. |
+| `fatal: Authentication failed` ao baixar | O repositório é privado. Rode `gh auth login` e tente de novo. |
+| Gemini: `no longer supported for Gemini Code Assist` | Entre com chave de API (`Use Gemini API Key`), criada em aistudio.google.com/apikey. Guarde-a em `~/.config/agentes/env` como `export GEMINI_API_KEY='...'`. |
+| Ubuntu não aparece no menu Iniciar (Windows) | PowerShell como administrador: `wsl --install -d Ubuntu`, reinicie. Confira com `wsl -l -v`. |
+| O terminal abre em `/mnt/c/WINDOWS/system32` | Rode `cd ~` antes de tudo. |
 
-- O Codex e o Gemini recebem as reservas no prompt, mas nada impede fisicamente que eles toquem outro arquivo no worktree deles. Quando isso acontece, o quadro mostra "fora da reserva" e você decide no merge.
-- A guarda do Claude só vale para as ferramentas de edição. Um comando de terminal que escreve num arquivo reservado passa.
-- As tarefas do Claude criadas com `quadro.sh reservar` ficam ativas até `quadro.sh liberar`. Se o Claude esquecer, as reservas continuam valendo.
+**Ao rodar tarefas**
+
+Se uma tarefa fica `falhou`, o motivo está no log: `painel.sh <projeto> --log <nome>`.
+
+| Sintoma | Causa e solução |
+| --- | --- |
+| `erro: defina GEMINI_API_KEY`, mas a chave está no `~/.bashrc` | Scripts em segundo plano não leem o `.bashrc`. Mova a chave para `~/.config/agentes/env` (`chmod 600`). |
+| `bad interpreter: /usr/bin/env: 'bash\r'` (Windows) | O Git do Windows trocou o fim das linhas. Clone de novo **dentro do Ubuntu**. Para consertar: `find ~/.gerenciador -name '*.sh' -exec sed -i 's/\r$//' {} +`. |
+| `codex`, `gemini` ou `claude` "não encontrado" no WSL | A CLI foi instalada só no Windows. Instale dentro do Ubuntu; `command -v codex` não pode começar com `/mnt/c`. |
+| O painel não aparece | Rode `/painel`. O `gerenciador` precisa do `tmux` instalado. |
+
+Os problemas de Windows/WSL desta tabela não foram reproduzidos em testes; ela serve para reconhecer o sintoma.
+
+## Segurança e limites
+
+**O que o projeto protege**
+
+- Reservas: duas tarefas ativas não reservam o mesmo arquivo.
+- O hook impede o gerente de editar arquivos reservados por um agente.
+- O quadro marca arquivos tocados fora da reserva e arquivos tocados por mais de uma tarefa.
+- A interface web escuta só em `127.0.0.1` (só o seu computador acessa).
+- Nada é juntado à branch principal sem o gerente revisar o diff.
+
+**O que não faz**
+
+- Os agentes recebem as reservas no prompt, mas nada os impede fisicamente de mexer em outro arquivo na cópia deles. Quando acontece, o painel avisa e você decide no merge.
+- O hook só vale para as ferramentas de edição do Claude: um comando de terminal que escreve num arquivo reservado passa.
+- Reservas feitas pelo gerente ficam valendo até serem soltas (`quadro.sh liberar`).
 - Áudio e vídeo ainda não estão montados.
-- Pelo celular, o pedido ao Claude roda até o fim sem poder perguntar nada; o Claude escolhe o caminho mais seguro e diz o que ficou pendente.
-- Testado com Codex, Gemini e API de imagem simulados (`agentes/testes/testar.sh`). A skill do OpenClaw foi carregada num OpenClaw de verdade (`Ready`), mas a conversa pelo Telegram não foi testada aqui. Codex e Gemini reais (e o Claude real chamando o subagente `codex`) foram exercitados no Linux em 2026-10-21, e foi aí que apareceram os problemas da seção "Problemas ao rodar as tarefas". Falta rodar com o bot do Telegram e no Windows/WSL.
+- Pelo celular, o pedido roda até o fim sem poder perguntar nada.
+- Testado com agentes simulados (`agentes/testes/testar.sh`) e com Codex e Gemini reais no Linux. Falta testar a conversa pelo Telegram e o uso no Windows/WSL.
+
+## Para quem quer mexer
+
+| Onde | O que tem |
+| --- | --- |
+| `agentes/scripts/` | Os scripts (tarefa, quadro, painel, configuração...). |
+| `agentes/hooks/` | Guarda de arquivos, aviso de token e linha de status. |
+| `agentes/GERENTE.md` | As regras do gerente, importadas no `CLAUDE.md` do projeto. |
+| `agentes/claude-agents/` | Os subagentes `codex` e `gemini`. |
+| `agentes/claude-commands/` | Os comandos `/gerente`, `/codex`, `/painel` e `/atualizar-agentes`. |
+| `agentes/ui/` | A interface web (`servidor.py` e `index.html`). |
+| `agentes/instalar.sh` | Liga o gerenciador a um projeto (o `gerenciador` já roda isso sozinho). |
+
+O quadro de tarefas e os logs ficam em `<projeto>/.git/agentes/` (fora dos commits), e as cópias de trabalho em `<pasta-pai>/.agentes-<projeto>/<nome>`.
+
+Para testar tudo com agentes simulados: `~/.gerenciador/agentes/testes/testar.sh` (a última linha tem que ser "tudo certo"). Ele também roda no CI, em Linux e macOS.
