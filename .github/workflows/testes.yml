@@ -32,6 +32,6 @@ jobs:
       - name: Versão do bash
         run: bash --version | head -n1
       - name: Sintaxe dos scripts
-        run: for f in agentes/scripts/*.sh agentes/hooks/*.sh agentes/lib/*.sh agentes/instalar.sh agentes/testes/*.sh; do bash -n "$f"; done
+        run: for f in agentes/scripts/*.sh agentes/hooks/*.sh agentes/lib/*.sh agentes/instalar.sh agentes/testes/*.sh install.sh; do bash -n "$f"; done
       - name: Teste ponta a ponta
         run: agentes/testes/testar.sh
