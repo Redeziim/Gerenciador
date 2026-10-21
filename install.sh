@@ -19,7 +19,8 @@ done
 
 perguntar() {
   local pergunta="$1" padrao="$2" resposta
-  [ "$sim" -eq 0 ] || return 0
+  # --sim aceita o padrão "sim"; as perguntas com padrão "não" (Gemini, testes) continuam não.
+  if [ "$sim" -eq 1 ]; then [ "$padrao" = sim ]; return $?; fi
   if { : </dev/tty; } 2>/dev/null; then
     printf '%s [%s]: ' "$pergunta" "$( [ "$padrao" = sim ] && printf 'S/n' || printf 's/N' )" >/dev/tty
     IFS= read -r resposta </dev/tty || resposta=''

@@ -1,6 +1,26 @@
 # Gerenciador
 
-Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo tempo. O Claude é o gerente: ele divide o trabalho, faz o código pesado e distribui tarefas para o Codex e o Gemini, cada uma em uma pasta (git worktree) e branch próprias.
+Um jeito de usar **vários assistentes de IA de programação ao mesmo tempo no mesmo projeto**, sem que eles se atrapalhem. Você conversa com um só, o **Claude (o gerente)**, e ele reparte o trabalho com o **Codex** e (se você pedir) o **Gemini**. Cada um trabalha numa cópia separada do projeto (um git worktree com branch própria), então ninguém sobrescreve o arquivo do outro. No fim o gerente revisa e junta tudo.
+
+## Instalar (um comando)
+
+**Linux, macOS ou WSL:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Redeziim/Gerenciador/main/install.sh | bash
+```
+
+**Windows** (PowerShell; usa o WSL/Ubuntu por baixo, e instala o WSL se faltar):
+
+```powershell
+irm https://raw.githubusercontent.com/Redeziim/Gerenciador/main/install.ps1 | iex
+```
+
+O instalador confere o que falta (git, tmux, jq, Node...), instala com a sua permissão, baixa o Gerenciador em `~/.gerenciador` e cria o comando `gerenciador`. Pode rodar de novo a qualquer hora: ele só atualiza. Opções: `--sim` (aceita as perguntas com padrão "sim"), `--sem-clis` (não instala Claude/Codex/Gemini) e `--teste` (só mostra o que faria).
+
+> O repositório está **privado** por enquanto, então os links acima só funcionam depois que ele for público. Enquanto isso, com o `gh` instalado e logado (`gh auth login`): `gh api repos/Redeziim/Gerenciador/contents/install.sh -H 'Accept: application/vnd.github.raw' | bash`, ou clone e rode `./install.sh`.
+
+Depois: entre nas contas (`claude` e `codex login`) e, na pasta de qualquer projeto git, rode `gerenciador`.
 
 ## Quem faz o quê
 
@@ -50,9 +70,9 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 - Gemini CLI (`gemini -p`) logada. O modelo pode ser escolhido com `GEMINI_MODELO`.
 - `GEMINI_API_KEY` para gerar imagem. O modelo padrão é `gemini-2.5-flash-image` e pode ser trocado com `GEMINI_MODELO_IMAGEM`. Os scripts procuram a chave primeiro no ambiente e depois em `~/.config/agentes/env` (passo 3 da instalação; o motivo está em "Problemas ao rodar as tarefas").
 
-## Instalação
+## Instalação manual
 
-Passo a passo no Ubuntu ou Debian (no Windows, dentro do Ubuntu do WSL; veja a nota no fim):
+Se preferir fazer cada passo à mão (o instalador acima já faz isto). Passo a passo no Ubuntu ou Debian (no Windows, dentro do Ubuntu do WSL; veja a nota no fim):
 
 ```bash
 # 1. Programas básicos e Node 24 (o OpenClaw precisa do 24)
@@ -79,10 +99,9 @@ gemini          # escolha "Use Gemini API Key"
 gh auth login   # GitHub.com, HTTPS, Y, Login with a web browser
 
 # 5. Gerenciador e projeto
-git clone https://github.com/Redeziim/Gerenciador.git ~/Gerenciador
-mkdir -p ~/projetos && gh repo clone Redeziim/Rpg-Map ~/projetos/meu-projeto
-~/Gerenciador/agentes/instalar.sh ~/projetos/meu-projeto
-~/Gerenciador/agentes/testes/testar.sh   # a última linha tem que ser "tudo certo"
+git clone https://github.com/Redeziim/Gerenciador.git ~/.gerenciador
+~/.gerenciador/agentes/instalar.sh ~/projetos/meu-projeto   # um repositório git seu
+~/.gerenciador/agentes/testes/testar.sh   # a última linha tem que ser "tudo certo"
 ```
 
 Depois abra o Claude Code no projeto e, se ele abrir no Haiku, troque com `/model`. O jeito mais prático é o atalho `gerenciador`, que abre o Claude e o painel ao vivo lado a lado:
@@ -92,7 +111,7 @@ gerenciador                  # no projeto em que você está
 gerenciador ~/projetos/meu-projeto   # ou uma pasta / apelido de projeto
 ```
 
-Ele usa o `tmux`: Claude à esquerda, painel à direita (o mouse funciona para trocar de lado). `/exit` no Claude fecha tudo; `Ctrl+b` e depois `d` deixa a sessão rodando em segundo plano, e o mesmo comando volta para ela. Se o projeto ainda não tem o gerenciador, ele instala sozinho. O atalho é criado pelo `instalar.sh` em `~/.local/bin`; se `gerenciador` não for encontrado, rode `~/Gerenciador/agentes/scripts/iniciar.sh` direto. O instalador pode rodar de novo sem duplicar nada. No Fedora, troque o `apt` por `dnf` e use `https://rpm.nodesource.com/setup_24.x`.
+Ele usa o `tmux`: Claude à esquerda, painel à direita (o mouse funciona para trocar de lado). `/exit` no Claude fecha tudo; `Ctrl+b` e depois `d` deixa a sessão rodando em segundo plano, e o mesmo comando volta para ela. Se o projeto ainda não tem o gerenciador, ele instala sozinho. O atalho é criado pelo `instalar.sh` em `~/.local/bin`; se `gerenciador` não for encontrado, rode `~/.gerenciador/agentes/scripts/iniciar.sh` direto. O instalador pode rodar de novo sem duplicar nada. No Fedora, troque o `apt` por `dnf` e use `https://rpm.nodesource.com/setup_24.x`.
 
 **No Windows:** no PowerShell como administrador, rode `wsl --install -d Ubuntu`, reinicie e abra **Ubuntu** pelo menu Iniciar. O terminal pode abrir em `/mnt/c/WINDOWS/system32`: rode `cd ~` antes de tudo. Para abrir outro terminal do Ubuntu, use o menu Iniciar ou `wsl ~` num PowerShell.
 
@@ -127,7 +146,7 @@ Se uma tarefa fica `falhou`, o motivo está no log: `painel.sh <projeto> --log <
 O Claude faz isso sozinho pelos subagentes, mas os scripts também funcionam direto:
 
 ```bash
-S=~/Gerenciador/agentes/scripts
+S=~/.gerenciador/agentes/scripts
 
 # Codex na API, Gemini nos textos, cada um com seus arquivos reservados
 $S/tarefa.sh codex . api-login --reservar src/api/login "Crie o endpoint de login ..."
@@ -249,10 +268,10 @@ O [OpenClaw](https://docs.openclaw.ai) roda no computador (Linux, macOS ou WSL n
    O código vale por uma hora. Depois disso, só a sua conta fala com o bot.
 5. Instale a skill e dê um apelido ao projeto (o projeto já precisa ter passado pelo `instalar.sh`):
    ```bash
-   ~/Gerenciador/agentes/instalar-openclaw.sh demo ~/projetos/meu-projeto
+   ~/.gerenciador/agentes/instalar-openclaw.sh demo ~/projetos/meu-projeto
    openclaw gateway restart
    ```
-   Para mais projetos: `~/Gerenciador/agentes/scripts/projetos.sh adicionar <apelido> <pasta>`.
+   Para mais projetos: `~/.gerenciador/agentes/scripts/projetos.sh adicionar <apelido> <pasta>`.
 6. Confira: `openclaw skills info gerenciador-agentes` deve mostrar `Ready`, e `openclaw channels status --probe` deve mostrar o Telegram ligado.
 
 O computador precisa ficar ligado, com o OpenClaw rodando, para o bot responder.
