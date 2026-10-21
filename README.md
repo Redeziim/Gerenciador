@@ -22,6 +22,8 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 | `agentes/scripts/iniciar.sh` | Atalho `gerenciador`: abre o Claude e o painel lado a lado no tmux, instalando o gerenciador no projeto se faltar. Em sessão nova, pergunta o modelo e o nível do gerente; Enter mantém o último usado, e `--modelo`/`--nivel` pulam a pergunta. Se a sessão já existe, volta a ela como está. |
 | `agentes/scripts/gerente-config.sh` | Mostra o quadro de agentes e níveis do projeto e permite definir o gerente e os níveis do Codex e dos subagentes Claude. |
 | `agentes/scripts/painel.sh` | Painel ao vivo no terminal, no estilo da CLI do Claude: o que cada agente está fazendo agora, em quais arquivos está mexendo, o modelo, o tempo e o resultado. |
+| `agentes/scripts/ui.sh` | Inicia a interface web do projeto na porta 8765 (ou na porta indicada). |
+| `agentes/ui/` | Interface web: `servidor.py` serve a API e `index.html` mostra o painel. |
 | `agentes/scripts/esperar.sh` | Espera uma frente terminar e mostra status, commit, arquivos e resumo. |
 | `agentes/scripts/imagem.sh` | Gera imagem com o Nano Banana pela API do Gemini. |
 | `agentes/scripts/pedir-ao-claude.sh` | Manda um pedido para o Claude gerente rodar sozinho no projeto (`claude -p`), sem terminal aberto. É o que o celular usa. |
@@ -153,6 +155,10 @@ $S/passar-para-codex.sh . terminar-login notas.md src/login
 ```
 
 Para ver o painel enquanto trabalha com o Claude, use o atalho `gerenciador` (acima) ou deixe `painel.sh` aberto em outra aba do terminal.
+
+### Interface web
+
+Abra com `agentes/scripts/ui.sh <projeto>` e visite `http://127.0.0.1:8765`. A interface mostra agentes e níveis, acompanha o quadro ao vivo, permite alterar níveis e cancelar tarefas. O servidor escuta só em `127.0.0.1`.
 
 ### Como ler o painel
 
