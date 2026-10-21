@@ -12,7 +12,7 @@
 #   --depois <tarefa>     só começa quando essa tarefa terminar, e parte do resultado dela (repetível)
 #   --base <ref>          ponto de partida da branch (padrão: HEAD do projeto)
 #   --forcar              abre mesmo com conflito de reserva
-#   --modelo <nome>       modelo do agente (padrão: o do ~/.codex/config.toml, ou GEMINI_MODELO)
+#   --modelo <nome>       modelo do agente (Codex: codex.env, sol mais novo, padrão do Codex; Gemini: GEMINI_MODELO)
 #   --raciocinio <nível>  só Codex: low, medium, high ou xhigh (padrão: o do ~/.codex/config.toml)
 #   --continuar           segue uma tarefa já terminada com o mesmo nome: reaproveita o worktree, a branch
 #                         e a conversa do agente (ele não relê o projeto). A tarefa nova só diz o que mudar.
@@ -154,6 +154,9 @@ cfg="${AGENTES_CODEX_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/agentes/codex.env
 if [ "$agente" = codex ] && [ -f "$cfg" ]; then # padrões de codex-config.sh
   [ -n "$modelo_pedido" ] || modelo_pedido="$(sed -n 's/^modelo=//p' "$cfg" | tail -n 1)"
   [ -n "$raciocinio" ] || raciocinio="$(sed -n 's/^raciocinio=//p' "$cfg" | tail -n 1)"
+fi
+if [ "$agente" = codex ] && [ -z "$modelo_pedido" ]; then
+  modelo_pedido="$("$(dirname "$(readlink -f "$0")")/codex-config.sh" sol)"
 fi
 if [ "$agente" = codex ]; then # nível fixado pelo usuário (gerente-config.sh) vence a escolha por tarefa
   fixo=""; ger="$(dir_estado "$(raiz_projeto "$projeto")")/gerente.env"

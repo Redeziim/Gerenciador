@@ -14,6 +14,7 @@ trap '[ -n "${MANTER:-}" ] || rm -rf "$tmp"' EXIT
 export AGENTES_INTERVALO=0.2
 export AGENTES_ESTADO="$tmp/estado-claude"
 export AGENTES_CODEX_CONFIG="$tmp/codex.env"
+export CODEX_HOME="$tmp/codex-home"
 export PATH="$tmp/bin:$PATH"
 
 falhas=0
@@ -87,6 +88,31 @@ checa "registra raciocínio e modelo" test "$(campo simples raciocinio)/$(campo 
 "$S/tarefa.sh" codex "$proj" padrao --reservar docs/padrao "CRIAR docs/padrao/a.txt" >/dev/null
 espera padrao
 nega "sem opções, usa o config do codex" grep -q -e 'model_reasoning_effort' -e ' -m ' "$CODEX_ARGS_LOG"
+checa "sol sem cache imprime vazio" test -z "$("$S/codex-config.sh" sol)"
+mkdir -p "$CODEX_HOME"
+cat >"$tmp/models_cache.json" <<'EOF'
+{"models":[{"slug":"gpt-5.6-sol"},{"slug":"gpt-6-sol"},{"slug":"gpt-6.1-sol"},{"slug":"gpt-6-luna"}]}
+EOF
+cp "$tmp/models_cache.json" "$CODEX_HOME/models_cache.json"
+checa "sol escolhe o mais novo" test "$("$S/codex-config.sh" sol)" = gpt-6.1-sol
+: >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" sol-padrao --reservar docs/sol-padrao "CRIAR docs/sol-padrao/a.txt" >/dev/null
+espera sol-padrao
+checa "tarefa usa sol mais novo" grep -q -- '-m gpt-6.1-sol' "$CODEX_ARGS_LOG"
+checa "tarefa registra sol mais novo" test "$(campo sol-padrao modelo)" = gpt-6.1-sol
+echo 'modelo=gpt-6-sol' >"$AGENTES_CODEX_CONFIG"
+: >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" sol-config --reservar docs/sol-config "CRIAR docs/sol-config/a.txt" >/dev/null
+espera sol-config
+checa "codex.env vence o sol padrão" grep -q -- '-m gpt-6-sol' "$CODEX_ARGS_LOG"
+checa "registra o modelo do codex.env" test "$(campo sol-config modelo)" = gpt-6-sol
+: >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" sol-opcao --modelo gpt-6-luna --reservar docs/sol-opcao "CRIAR docs/sol-opcao/a.txt" >/dev/null
+espera sol-opcao
+checa "--modelo vence codex.env" grep -q -- '-m gpt-6-luna' "$CODEX_ARGS_LOG"
+checa "registra o --modelo" test "$(campo sol-opcao modelo)" = gpt-6-luna
+: >"$AGENTES_CODEX_CONFIG"
+rm "$CODEX_HOME/models_cache.json"
 nega "raciocínio inválido é recusado" "$S/tarefa.sh" codex "$proj" ruim --raciocinio extremo "x"
 nega "raciocínio só vale para o codex" "$S/tarefa.sh" gemini "$proj" ruim2 --raciocinio low "x"
 nega "modelo com caracteres estranhos é recusado" "$S/tarefa.sh" codex "$proj" ruim3 --modelo 'a;b' "x"
@@ -330,8 +356,12 @@ echo "gerente e níveis (gerente-config.sh)"
 G="$S/gerente-config.sh"
 env_g="$proj/.git/agentes/gerente.env"
 rm -f "$env_g"
+cp "$tmp/models_cache.json" "$CODEX_HOME/models_cache.json"
 checa "mostra o quadro de agentes" grep -q 'gemini' <<<"$("$G" "$proj")"
 checa "quadro mostra o padrão" grep -q 'nível por tarefa' <<<"$("$G" "$proj")"
+checa "quadro mostra o sol padrão" grep -q 'codex.*gpt-6.1-sol (sol, padrão)' <<<"$("$G" "$proj")"
+checa "quadro sem cache mostra o padrão do Codex" grep -q 'codex.*(modelo padrão do Codex)' <<<"$(CODEX_HOME="$tmp/sem-cache" "$G" "$proj")"
+rm "$CODEX_HOME/models_cache.json"
 checa "gerente opus high grava" "$G" "$proj" gerente opus high
 checa "gravou o modelo e o nível" test "$(cat "$env_g")" = "gerente_modelo=opus
 gerente_nivel=high"
