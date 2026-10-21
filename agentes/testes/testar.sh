@@ -326,5 +326,81 @@ faltando=""
 for sc in $(grep -o "$aqui/scripts/[a-z-]*\.sh" "$skill" | sort -u); do [ -x "$sc" ] || faltando="$faltando $sc"; done
 checa "skill só cita scripts que existem" test -z "$faltando"
 
+echo "gerente e níveis (gerente-config.sh)"
+G="$S/gerente-config.sh"
+env_g="$proj/.git/agentes/gerente.env"
+rm -f "$env_g"
+checa "mostra o quadro de agentes" grep -q 'gemini' <<<"$("$G" "$proj")"
+checa "quadro mostra o padrão" grep -q 'nível por tarefa' <<<"$("$G" "$proj")"
+checa "gerente opus high grava" "$G" "$proj" gerente opus high
+checa "gravou o modelo e o nível" test "$(cat "$env_g")" = "gerente_modelo=opus
+gerente_nivel=high"
+checa "quadro mostra o gerente" grep -q 'gerente.*opus · high' <<<"$("$G" "$proj")"
+checa "gerente nivel troca só o nível" "$G" "$proj" gerente nivel medium
+checa "nível trocado, modelo mantido" test "$(grep -c . "$env_g")/$(sed -n 's/^gerente_modelo=//p' "$env_g")/$(sed -n 's/^gerente_nivel=//p' "$env_g")" = "2/opus/medium"
+checa "codex xhigh grava" "$G" "$proj" codex xhigh
+checa "codex fixo aparece no arquivo" grep -qx 'codex_nivel=xhigh' "$env_g"
+checa "quadro mostra codex fixo" grep -q 'xhigh (fixo)' <<<"$("$G" "$proj")"
+checa "codex auto solta o nível" "$G" "$proj" codex auto
+nega "codex auto remove do arquivo" grep -q codex_nivel "$env_g"
+checa "claude sonnet medium grava" "$G" "$proj" claude sonnet medium
+checa "claude fixo no arquivo" test "$(sed -n 's/^claude_modelo=//p' "$env_g")/$(sed -n 's/^claude_nivel=//p' "$env_g")" = "sonnet/medium"
+checa "claude auto solta modelo e nível" "$G" "$proj" claude auto
+nega "claude auto remove do arquivo" grep -q '^claude_' "$env_g"
+checa "gerente continua após os outros" grep -qx 'gerente_modelo=opus' "$env_g"
+nega "nível inválido é recusado" "$G" "$proj" gerente opus banana
+nega "nível inválido do codex é recusado" "$G" "$proj" codex banana
+nega "nível inválido em gerente nivel é recusado" "$G" "$proj" gerente nivel banana
+nega "modelo inválido é recusado" "$G" "$proj" gerente 'a b'
+nega "modelo inválido do claude é recusado" "$G" "$proj" claude 'a b'
+nega "recusa não grava o modelo inválido" grep -q 'a b' "$env_g"
+
+echo "nível fixo do codex em tarefa.sh"
+export CODEX_ARGS_LOG="$tmp/codex-args"; : >"$CODEX_ARGS_LOG"
+"$G" "$proj" codex xhigh >/dev/null
+"$S/tarefa.sh" codex "$proj" nivel-fixo --raciocinio low --reservar docs/nf "CRIAR docs/nf/a.txt" >/dev/null
+espera nivel-fixo
+checa "nível fixo vence o --raciocinio" grep -q 'model_reasoning_effort="xhigh"' "$CODEX_ARGS_LOG"
+nega "o raciocínio pedido não chega ao codex" grep -q 'model_reasoning_effort="low"' "$CODEX_ARGS_LOG"
+checa "registra o nível fixo" test "$(campo nivel-fixo raciocinio)" = xhigh
+"$G" "$proj" codex auto >/dev/null; : >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" nivel-auto --raciocinio low --reservar docs/na "CRIAR docs/na/a.txt" >/dev/null
+espera nivel-auto
+checa "com auto, vale o --raciocinio pedido" grep -q 'model_reasoning_effort="low"' "$CODEX_ARGS_LOG"
+unset CODEX_ARGS_LOG
+
+echo "iniciar.sh (gerente por sessão)"
+if command -v tmux >/dev/null; then
+  proj2="$tmp/proj-sessao"
+  git init -q "$proj2"
+  git -C "$proj2" config user.email teste@exemplo.com
+  git -C "$proj2" config user.name teste
+  echo x >"$proj2/a.txt"; git -C "$proj2" add -A; git -C "$proj2" commit -qm inicial
+  cat >"$tmp/claude-sessao" <<'EOF2'
+#!/usr/bin/env bash
+echo "$*" >>"$CLAUDE_SESSAO_LOG"
+sleep 30
+EOF2
+  chmod +x "$tmp/claude-sessao"
+  sessao="gerenciador-$(basename "$proj2" | tr -c 'A-Za-z0-9_\n-' '-')"
+  export CLAUDE_SESSAO_LOG="$tmp/sessao.log"
+  ini() { env CLAUDE_BIN="$tmp/claude-sessao" AGENTES_SEM_ANEXAR=1 TMUX= "$S/iniciar.sh" "$proj2" "$@" </dev/null; }
+  tmux kill-session -t "$sessao" 2>/dev/null
+  checa "cria a sessão com modelo e nível" ini --modelo opus --nivel high
+  sleep 1
+  checa "sessão tmux existe" tmux has-session -t "$sessao"
+  checa "claude recebe --model opus --effort high" grep -q -- '--model opus --effort high' "$CLAUDE_SESSAO_LOG"
+  checa "gerente salvo no projeto" test "$(sed -n 's/^gerente_modelo=//p' "$proj2/.git/agentes/gerente.env")/$(sed -n 's/^gerente_nivel=//p' "$proj2/.git/agentes/gerente.env")" = opus/high
+  tmux kill-session -t "$sessao" 2>/dev/null
+  : >"$CLAUDE_SESSAO_LOG"
+  checa "nova sessão sem opções" ini
+  sleep 1
+  checa "reaproveita o gerente salvo" grep -q -- '--model opus --effort high' "$CLAUDE_SESSAO_LOG"
+  tmux kill-session -t "$sessao" 2>/dev/null
+  unset CLAUDE_SESSAO_LOG
+else
+  echo "  pulado (sem tmux)"
+fi
+
 echo
 if [ "$falhas" -eq 0 ]; then echo "tudo certo"; else echo "$falhas falha(s)"; exit 1; fi

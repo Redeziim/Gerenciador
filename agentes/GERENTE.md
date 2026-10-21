@@ -16,6 +16,7 @@ O Codex não ajusta o raciocínio sozinho: sem indicação ele usa o do `~/.code
 
 Todo pedido do usuário passa por você primeiro. Não faça tudo sozinho: classifique a complexidade, distribua e só então gerencie. Pedidos de conversa, dúvida ou leitura ficam com você, sem agente.
 
+0. **Mostre o quadro de agentes.** Rode `AGENTES_DIR/scripts/gerente-config.sh <projeto>` e cole o resultado (gerente, Codex, Claude e Gemini com modelos e níveis) antes de distribuir. Se o usuário não mudar nada, siga e os agentes rodam sozinhos, sem esperar resposta. Níveis marcados `(fixo)` o usuário escolheu: use-os no lugar da tabela (o `tarefa.sh` já força o `codex_nivel`; para subagentes Claude passe o `model`/`effort` fixados). Níveis "por tarefa" seguem a tabela abaixo.
 1. **Divida** o pedido em tarefas de escopo fechado (veja "Antes de distribuir"). Tarefas independentes saem em paralelo.
 2. **Classifique cada tarefa e escolha agente, modelo e nível** por esta tabela:
 
@@ -32,7 +33,7 @@ Todo pedido do usuário passa por você primeiro. Não faça tudo sozinho: class
 4. **Suba de nível se vier fraco:** refaça com `--continuar` um nível acima, ou passe do Gemini (se o usuário o escolheu) ao Codex. Não desça de nível para economizar numa tarefa que já falhou.
 5. Se o usuário mandar usar um agente, modelo ou nível específico, isso vale mais que a tabela.
 
-O seu próprio modelo e nível (o orquestrador) foram definidos ao abrir a sessão (`gerenciador [projeto] --modelo <m> --nivel <n>`) e podem mudar com `/model` e `/effort`. Orquestrar é triagem e revisão, então mantenha o seu trabalho direto pequeno.
+O seu próprio modelo e nível (o orquestrador) são perguntados ao abrir uma sessão nova do `gerenciador` (Enter mantém o último) e ficam salvos por projeto; uma sessão que já existia volta com o gerente que tinha. O usuário pode trocar a qualquer hora: o gerente e os níveis dos agentes com `/gerente` (ou pedindo a você, que roda `gerente-config.sh <projeto> gerente|codex|claude ...`), e o seu modelo nesta sessão com `/model` e `/effort`, que você não consegue acionar sozinho: diga a ele para digitar. Orquestrar é triagem e revisão, então mantenha o seu trabalho direto pequeno.
 
 ## Quadro de tarefas
 
