@@ -19,6 +19,7 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 | `agentes/scripts/tarefa.sh` | Abre worktree e branch `<agente>/<nome>`, reserva arquivos, espera dependências, roda o Codex ou o Gemini em segundo plano e faz o commit ao final. |
 | `agentes/scripts/quadro.sh` | Quadro de tarefas: o Claude reserva e solta os arquivos dele, confere se um caminho está livre e cancela frentes. |
 | `agentes/scripts/status.sh` | Mostra o quadro: tarefas, reservas, dependências, arquivos tocados e sobreposições. |
+| `agentes/scripts/iniciar.sh` | Atalho `gerenciador`: abre o Claude e o painel lado a lado no tmux, instalando o gerenciador no projeto se faltar. |
 | `agentes/scripts/painel.sh` | Painel ao vivo no terminal com todas as frentes e as últimas linhas do log de cada uma. |
 | `agentes/scripts/esperar.sh` | Espera uma frente terminar e mostra status, commit, arquivos e resumo. |
 | `agentes/scripts/imagem.sh` | Gera imagem com o Nano Banana pela API do Gemini. |
@@ -48,7 +49,7 @@ Passo a passo no Ubuntu ou Debian (no Windows, dentro do Ubuntu do WSL; veja a n
 
 ```bash
 # 1. Programas básicos e Node 24 (o OpenClaw precisa do 24)
-sudo apt update && sudo apt install -y git jq curl gh
+sudo apt update && sudo apt install -y git jq curl gh tmux
 curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install -y nodejs
 
@@ -77,7 +78,14 @@ mkdir -p ~/projetos && gh repo clone Redeziim/Rpg-Map ~/projetos/Rpg-Map
 ~/Gerenciador/agentes/testes/testar.sh   # a última linha tem que ser "tudo certo"
 ```
 
-Depois abra o Claude Code no projeto (`cd ~/projetos/Rpg-Map && claude`) e, se ele abrir no Haiku, troque com `/model`. O instalador pode rodar de novo sem duplicar nada. No Fedora, troque o `apt` por `dnf` e use `https://rpm.nodesource.com/setup_24.x`.
+Depois abra o Claude Code no projeto e, se ele abrir no Haiku, troque com `/model`. O jeito mais prático é o atalho `gerenciador`, que abre o Claude e o painel ao vivo lado a lado:
+
+```bash
+gerenciador                  # no projeto em que você está
+gerenciador ~/projetos/Rpg-Map   # ou uma pasta / apelido de projeto
+```
+
+Ele usa o `tmux`: Claude à esquerda, painel à direita (o mouse funciona para trocar de lado). `/exit` no Claude fecha tudo; `Ctrl+b` e depois `d` deixa a sessão rodando em segundo plano, e o mesmo comando volta para ela. Se o projeto ainda não tem o gerenciador, ele instala sozinho. O atalho é criado pelo `instalar.sh` em `~/.local/bin`; se `gerenciador` não for encontrado, rode `~/Gerenciador/agentes/scripts/iniciar.sh` direto. O instalador pode rodar de novo sem duplicar nada. No Fedora, troque o `apt` por `dnf` e use `https://rpm.nodesource.com/setup_24.x`.
 
 **No Windows:** no PowerShell como administrador, rode `wsl --install -d Ubuntu`, reinicie e abra **Ubuntu** pelo menu Iniciar. O terminal pode abrir em `/mnt/c/WINDOWS/system32`: rode `cd ~` antes de tudo. Para abrir outro terminal do Ubuntu, use o menu Iniciar ou `wsl ~` num PowerShell.
 

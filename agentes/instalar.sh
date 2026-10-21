@@ -43,9 +43,13 @@ linha="@.claude/gerente-agentes.md"
 touch "$raiz/CLAUDE.md"
 grep -qxF "$linha" "$raiz/CLAUDE.md" || printf '\n%s\n' "$linha" >>"$raiz/CLAUDE.md"
 
+# Atalho "gerenciador" para abrir o Claude com o painel (scripts/iniciar.sh).
+mkdir -p "$HOME/.local/bin"
+ln -sf "$aqui/scripts/iniciar.sh" "$HOME/.local/bin/gerenciador"
+
 echo "instalado em $raiz"
 echo "  subagentes: .claude/agents/codex.md e gemini.md"
 echo "  regras:     .claude/gerente-agentes.md (importado no CLAUDE.md)"
 echo "  hooks:      linha de status, aviso de token e guarda de arquivos em .claude/settings.json"
-echo "Painel ao vivo: $aqui/scripts/painel.sh $raiz"
+echo "  atalho:     gerenciador [projeto]  (Claude + painel lado a lado; precisa de ~/.local/bin no PATH e do tmux)"
 echo "Abra uma sessão nova do Claude Code no projeto para valer."
