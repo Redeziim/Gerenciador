@@ -10,11 +10,14 @@
 #   quadro.sh livre <projeto> <caminho>...
 #       diz se os caminhos estão livres (código 0) ou quem os reservou (código 1)
 #   quadro.sh cancelar <projeto> <nome>
-#       interrompe uma tarefa do Codex ou do Gemini e solta as reservas dela
+#       interrompe uma tarefa do Codex ou do Gemini e solta as reservas dela (alias: parar)
+#   quadro.sh limpar <projeto> <nome>|--todas [--descartar]
+#       tira a tarefa do quadro (para antes, se estiver ativa). --todas limpa só as encerradas.
+#       --descartar também apaga o worktree e a branch dela (perde o que não foi mergeado)
 
 source "$(dirname "$(readlink -f "$0")")/../lib/comum.sh"
 
-[ $# -ge 2 ] || { sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ $# -ge 2 ] || { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 precisa git jq
 
 acao="$1"
@@ -72,7 +75,7 @@ case "$acao" in
     echo "livre"
     ;;
 
-  cancelar)
+  cancelar|parar)
     [ $# -eq 1 ] || erro "uso: quadro.sh cancelar <projeto> <nome>"
     reg="$estado/tarefas/$1.json"
     [ -f "$reg" ] || erro "tarefa '$1' não encontrada"
@@ -91,5 +94,35 @@ case "$acao" in
     echo "'$1' cancelada"
     ;;
 
-  *) erro "ação '$acao' desconhecida (use reservar, liberar, livre ou cancelar)" ;;
+  limpar)
+    descartar=0; alvo=""
+    for a in "$@"; do
+      case "$a" in --descartar) descartar=1 ;; *) alvo="$a" ;; esac
+    done
+    [ -n "$alvo" ] || erro "uso: quadro.sh limpar <projeto> <nome>|--todas [--descartar]"
+    regs=()
+    if [ "$alvo" = "--todas" ]; then
+      for r in "$estado"/tarefas/*.json; do [ -f "$r" ] && regs+=("$r"); done
+    else
+      [ -f "$estado/tarefas/$alvo.json" ] || erro "tarefa '$alvo' não encontrada"
+      regs=("$estado/tarefas/$alvo.json")
+    fi
+    for reg in ${regs[@]+"${regs[@]}"}; do
+      nome="$(registro_get "$reg" nome)"
+      if ativa "$(registro_get "$reg" status)"; then
+        # --todas não mexe no que ainda está rodando; pelo nome, para antes de limpar.
+        [ "$alvo" != "--todas" ] || continue
+        "$0" cancelar "$raiz" "$nome" >/dev/null
+      fi
+      if [ "$descartar" = 1 ]; then
+        wt="$(registro_get "$reg" worktree)"; br="$(registro_get "$reg" branch)"
+        [ -z "$wt" ] || [ ! -d "$wt" ] || git -C "$raiz" worktree remove --force "$wt" 2>/dev/null || true
+        [ -z "$br" ] || git -C "$raiz" branch -D "$br" >/dev/null 2>&1 || true
+      fi
+      rm -f "$reg"
+      echo "'$nome' removida do quadro$([ "$descartar" = 1 ] && echo ' (worktree e branch descartados)')"
+    done
+    ;;
+
+  *) erro "ação '$acao' desconhecida (use reservar, liberar, livre, cancelar/parar ou limpar)" ;;
 esac

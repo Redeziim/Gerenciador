@@ -6,6 +6,7 @@
 # Depois do instalar.sh, o atalho é só: gerenciador [projeto]
 #
 # Variáveis: CLAUDE_BIN, AGENTES_SEM_ANEXAR=1 (cria a sessão sem entrar nela, usado nos testes).
+# Para mexer no painel: clique nele (mouse ligado) ou Ctrl+b → ; Ctrl+b ← volta ao Claude.
 # Sair: /exit no Claude fecha a sessão inteira. Ctrl+b d deixa a sessão rodando em segundo plano
 # e o mesmo comando volta para ela.
 
@@ -24,6 +25,11 @@ if ! tmux has-session -t "$sessao" 2>/dev/null; then
   # Quando o Claude sai, a sessão inteira fecha (o painel não fica sozinho).
   tmux new-session -d -s "$sessao" -c "$raiz" \
     "${CLAUDE_BIN:-claude}; tmux kill-session -t '$sessao' 2>/dev/null"
+  tmux split-window -h -l 40% -t "$sessao" -c "$raiz" "'$aqui/scripts/painel.sh' '$raiz'"
+  tmux select-pane -t "$sessao" -L
+  tmux set-option -t "$sessao" mouse on >/dev/null
+elif [ "$(tmux list-panes -t "$sessao" | wc -l)" -lt 2 ]; then
+  # Sessão antiga sem o painel (ou com ele fechado): recria ao lado do Claude.
   tmux split-window -h -l 40% -t "$sessao" -c "$raiz" "'$aqui/scripts/painel.sh' '$raiz'"
   tmux select-pane -t "$sessao" -L
   tmux set-option -t "$sessao" mouse on >/dev/null

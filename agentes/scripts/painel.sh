@@ -3,12 +3,13 @@
 # no estilo da CLI do Claude: o que cada um está fazendo agora, em quais arquivos está
 # mexendo, o modelo usado, o tempo e o resultado.
 #
-# Uso: painel.sh <projeto> [segundos]        (Ctrl+C para sair; padrão 1 s)
+# Uso: painel.sh <projeto>                   painel interativo (escolhe, cancela, limpa, vê log; q sai)
+#      painel.sh <projeto> --ao-vivo [seg]   só olhar, sem teclas (Ctrl+C sai; padrão 1 s)
 #      painel.sh <projeto> --log <tarefa>    acompanha o log de uma tarefa
 
 source "$(dirname "$(readlink -f "$0")")/../lib/comum.sh"
 
-[ $# -ge 1 ] || { sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ $# -ge 1 ] || { sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 aqui="$(dirname "$(readlink -f "$0")")"
 
 if [ "${2:-}" = "--log" ]; then
@@ -18,7 +19,10 @@ if [ "${2:-}" = "--log" ]; then
   exec tail -n 50 -F "$(registro_get "$reg" log)"
 fi
 
-intervalo="${2:-1}"
+if [ "${2:-}" != "--ao-vivo" ] && [ -t 0 ] && [ -t 1 ]; then
+  exec "$aqui/interativo.sh" "$1"
+fi
+if [ "${2:-}" = "--ao-vivo" ]; then intervalo="${3:-1}"; else intervalo="${2:-1}"; fi
 [ -t 1 ] && export AGENTES_CORES=1
 trap 'tput cnorm 2>/dev/null; echo; exit 0' INT TERM
 tput civis 2>/dev/null || true

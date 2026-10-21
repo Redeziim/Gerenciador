@@ -155,6 +155,8 @@ desenhar_painel() {
   printf '%s✻%s %sAgentes%s %s· %s%s%*s%s%s%s\n' "$laranja" "$normal" "$negrito" "$normal" "$fraco" "$(basename "$raiz")" "$normal" \
     "$pad" "" "$fraco" "$hora" "$normal"
   [ -n "$resumo_cab" ] && echo "  ${fraco}${resumo_cab}${normal}"
+  # Uso da sessão do Codex (5h e semana), lido dos registros que ele grava.
+  "$(dirname "$(readlink -f "$0")")/uso-codex.sh" --painel 2>/dev/null | sed 's/^/  /'
   echo
 
   local mostradas=$((n_rod + n_agu + n_ok + n_mal))
