@@ -22,6 +22,7 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 | `agentes/scripts/iniciar.sh` | Atalho `gerenciador`: abre o Claude e o painel lado a lado no tmux, instalando o gerenciador no projeto se faltar. Em sessão nova, pergunta o modelo e o nível do gerente; Enter mantém o último usado, e `--modelo`/`--nivel` pulam a pergunta. Se a sessão já existe, volta a ela como está. |
 | `agentes/scripts/gerente-config.sh` | Mostra o quadro de agentes e níveis do projeto e permite definir o gerente e os níveis do Codex e dos subagentes Claude. |
 | `agentes/scripts/painel.sh` | Painel ao vivo no terminal, no estilo da CLI do Claude: o que cada agente está fazendo agora, em quais arquivos está mexendo, o modelo, o tempo e o resultado. |
+| `agentes/scripts/abrir-painel.sh` | Reabre o painel ao lado do Claude na sessão do tmux; é o que o `/painel` usa. |
 | `agentes/scripts/ui.sh` | Inicia a interface web do projeto na porta 8765 (ou na porta indicada). |
 | `agentes/ui/` | Interface web: `servidor.py` serve a API e `index.html` mostra o painel. |
 | `agentes/scripts/esperar.sh` | Espera uma frente terminar e mostra status, commit, arquivos e resumo. |
@@ -215,6 +216,7 @@ O quadro de agentes e níveis do projeto aparece com `/gerente`. Para mudar o pa
 | Comando | Função |
 | --- | --- |
 | `/gerente` | Mostra ou troca o gerente e os níveis dos agentes do projeto. |
+| `/painel` | Reabre o painel de agentes ao lado do Claude, se tiver sido fechado (tmux). |
 | `/codex` | Mostra ou troca o modelo e o raciocínio padrão do Codex. |
 | `/codex-<modelo>` | Seleciona um modelo do cache do Codex; rode o instalador de novo quando surgir modelo novo. |
 | `/atualizar-agentes` | Confere atualizações; `/atualizar-agentes atualizar` instala. |
