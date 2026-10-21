@@ -40,7 +40,7 @@ Gerenciador de agentes para trabalhar com o Claude, o Codex e o Gemini ao mesmo 
 - `bash`, `git`, `jq`, `curl` e `base64`. Funciona em Linux e macOS, inclusive com o bash 3.2 que vem no macOS. No Windows, rode tudo dentro do WSL (Ubuntu), com o projeto guardado dentro do Ubuntu e não em `/mnt/c`.
 - Codex CLI (`codex exec`) logado. O modelo e o raciocínio vêm do `~/.codex/config.toml`.
 - Gemini CLI (`gemini -p`) logada. O modelo pode ser escolhido com `GEMINI_MODELO`.
-- `GEMINI_API_KEY` para gerar imagem. O modelo padrão é `gemini-2.5-flash-image` e pode ser trocado com `GEMINI_MODELO_IMAGEM`.
+- `GEMINI_API_KEY` para gerar imagem. O modelo padrão é `gemini-2.5-flash-image` e pode ser trocado com `GEMINI_MODELO_IMAGEM`. Os scripts procuram a chave primeiro no ambiente e depois em `~/.config/agentes/env` (passo 3 da instalação; o motivo está em "Problemas ao rodar as tarefas").
 
 ## Instalação
 
@@ -57,7 +57,10 @@ sudo npm install -g --allow-scripts=@anthropic-ai/claude-code,@github/keytar \
   @anthropic-ai/claude-code @openai/codex @google/gemini-cli
 
 # 3. Chave do Gemini (crie em https://aistudio.google.com/apikey). Cole quando pedir; ela não aparece na tela.
-read -rsp "Cole a chave: " K && echo "export GEMINI_API_KEY='$K'" >> ~/.bashrc && unset K
+mkdir -p ~/.config/agentes
+read -rsp "Cole a chave: " K && echo "export GEMINI_API_KEY='$K'" > ~/.config/agentes/env && unset K
+chmod 600 ~/.config/agentes/env
+echo '[ -f ~/.config/agentes/env ] && . ~/.config/agentes/env' >> ~/.bashrc   # para o `gemini` interativo
 source ~/.bashrc
 echo ${#GEMINI_API_KEY}   # tem que dar entre 40 e 60
 
@@ -90,6 +93,19 @@ Depois abra o Claude Code no projeto (`cd ~/projetos/Rpg-Map && claude`) e, se e
 | `fatal: Authentication failed` no `git clone` | O repositório é privado. Rode `gh auth login` e clone de novo. |
 | A chave apareceu num chat ou print | Apague em aistudio.google.com/apikey e crie outra. |
 | Ubuntu não aparece no menu Iniciar (Windows) | `wsl --install -d Ubuntu` no PowerShell (Admin) e reinicie. Confira com `wsl -l -v`. |
+
+### Problemas ao rodar as tarefas
+
+Os dois primeiros apareceram em uso real no Linux e foram reproduzidos e corrigidos. Os dois últimos são específicos do Windows/WSL e não foram reproduzidos (não há WSL na máquina onde isto foi investigado): a tabela serve para reconhecer o sintoma.
+
+| Sintoma | Causa | O que fazer |
+| --- | --- | --- |
+| Tarefa do Gemini fica `falhou` na hora; o log tem `Gemini CLI is not running in a trusted directory` e `código 55`. | Todo worktree é uma pasta nova, e o Gemini CLI recusa pastas não confiáveis em modo sem terminal (e ainda desliga o `--yolo`). | Corrigido: o `tarefa.sh` roda o Gemini com `GEMINI_CLI_TRUST_WORKSPACE=true`. Atualize o repositório (`git pull`). |
+| `erro: defina GEMINI_API_KEY` no `imagem.sh`, embora a chave esteja no `~/.bashrc`. | O `.bashrc` (Ubuntu, Omarchy e outros) sai logo no começo em shells não interativos, que são os do Claude Code, do OpenClaw e dos scripts em segundo plano. A linha `export` nunca é lida. | Corrigido: os scripts leem `~/.config/agentes/env`. Mova a chave: `mkdir -p ~/.config/agentes && grep '^export GEMINI_API_KEY' ~/.bashrc > ~/.config/agentes/env && chmod 600 ~/.config/agentes/env`. Depois pode apagar a linha antiga do `~/.bashrc`. |
+| `bad interpreter: /usr/bin/env: 'bash\r'` ou `$'\r': command not found` (Windows). | O repositório foi clonado pelo Git do Windows, que troca `\n` por `\r\n` nos scripts. | O `.gitattributes` força `\n` nos `.sh`. Clone de novo **dentro do Ubuntu** (`git clone` no terminal do WSL). Para consertar um clone antigo: `find ~/Gerenciador -name '*.sh' -exec sed -i 's/\r$//' {} +`. |
+| `codex`, `gemini` ou `claude` "não encontrado", ou abre o programa do Windows no WSL. | O WSL herda o `PATH` do Windows, e `command -v` acha o `.cmd`/`.exe` de fora, ou a CLI foi instalada só no Windows. | Instale as CLIs dentro do Ubuntu (passo 2). `command -v codex` tem que começar com `/usr` ou `/home`, nunca com `/mnt/c`. |
+
+Se uma tarefa fica `falhou`, o motivo está no log: `painel.sh <projeto> --log <nome>` ou `<projeto>/.git/agentes/logs/<nome>.log`.
 
 ## Uso
 
@@ -214,4 +230,4 @@ Os registros e logs ficam em `<projeto>/.git/agentes/`, e os worktrees em `<past
 - As tarefas do Claude criadas com `quadro.sh reservar` ficam ativas até `quadro.sh liberar`. Se o Claude esquecer, as reservas continuam valendo.
 - Áudio e vídeo ainda não estão montados.
 - Pelo celular, o pedido ao Claude roda até o fim sem poder perguntar nada; o Claude escolhe o caminho mais seguro e diz o que ficou pendente.
-- Testado com Codex, Gemini e API de imagem simulados (`agentes/testes/testar.sh`). A skill do OpenClaw foi carregada num OpenClaw de verdade (`Ready`), mas a conversa pelo Telegram não foi testada aqui. Falta rodar com as CLIs, o bot e a chave de verdade.
+- Testado com Codex, Gemini e API de imagem simulados (`agentes/testes/testar.sh`). A skill do OpenClaw foi carregada num OpenClaw de verdade (`Ready`), mas a conversa pelo Telegram não foi testada aqui. Codex e Gemini reais (e o Claude real chamando o subagente `codex`) foram exercitados no Linux em 2026-10-21, e foi aí que apareceram os problemas da seção "Problemas ao rodar as tarefas". Falta rodar com o bot do Telegram e no Windows/WSL.

@@ -48,6 +48,8 @@ EOF
 cat >"$tmp/bin/gemini" <<'EOF'
 #!/usr/bin/env bash
 while [ $# -gt 0 ]; do case "$1" in -p) p="$2"; shift 2 ;; *) shift ;; esac; done
+# O Gemini CLI real sai com 55 numa pasta não confiável (todo worktree novo é uma).
+[ "${GEMINI_CLI_TRUST_WORKSPACE:-}" = true ] || { echo "Gemini CLI is not running in a trusted directory." >&2; exit 55; }
 AGENTE=gemini exec agente-simulado "$PWD" "$p" ""
 EOF
 chmod +x "$tmp"/bin/*
@@ -207,6 +209,11 @@ EOF
   PEDIDO="pela variável" GEMINI_API_KEY=chave "$S/imagem.sh" - "$tmp/img/d.png" >/dev/null 2>&1
   checa "descrição da imagem por PEDIDO" test "$(cat "$tmp/img/d.png" 2>/dev/null)" = IMG1
   nega "erro da API vira erro" env GEMINI_API_KEY=errada "$S/imagem.sh" "x" "$tmp/img/c.png"
+  # A chave também pode vir do arquivo de configuração, para shells que não leem o ~/.bashrc.
+  echo "GEMINI_API_KEY=chave" >"$tmp/agentes-env"
+  AGENTES_ENV="$tmp/agentes-env" "$S/imagem.sh" "pelo arquivo" "$tmp/img/e.png" >/dev/null 2>&1
+  checa "chave lida do arquivo de configuração" test "$(cat "$tmp/img/e.png" 2>/dev/null)" = IMG1
+  nega "sem chave em lugar nenhum é erro" env -u GEMINI_API_KEY AGENTES_ENV="$tmp/nao-existe" "$S/imagem.sh" "x" "$tmp/img/f.png"
   kill "$api_pid" 2>/dev/null
 else
   echo "  pulado (sem python3)"

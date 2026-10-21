@@ -2,6 +2,17 @@
 
 set -euo pipefail
 
+# Chaves e variáveis dos agentes. O ~/.bashrc costuma sair cedo em shells não interativos
+# (Claude Code, OpenClaw, nohup), então um "export GEMINI_API_KEY" lá nunca chega nos scripts.
+# O que já estiver no ambiente tem prioridade.
+arquivo_env() { echo "${AGENTES_ENV:-${XDG_CONFIG_HOME:-$HOME/.config}/agentes/env}"; }
+if [ -z "${GEMINI_API_KEY:-}" ] && [ -f "$(arquivo_env)" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$(arquivo_env)"
+  set +a
+fi
+
 erro() { echo "erro: $*" >&2; exit 1; }
 aviso() { echo "aviso: $*" >&2; }
 

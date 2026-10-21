@@ -73,8 +73,10 @@ if [ "${1:-}" = "--executar" ]; then
       gemini)
         modelo=()
         [ -n "${GEMINI_MODELO:-}" ] && modelo=(-m "$GEMINI_MODELO")
+        # Cada worktree é uma pasta nova, que o Gemini CLI trata como não confiável: sem isto
+        # ele sai com código 55 e desliga o --yolo. As versões antigas ignoram a variável.
         # shellcheck disable=SC2086
-        (cd "$wt" && "${GEMINI_BIN:-gemini}" ${modelo[@]+"${modelo[@]}"} --yolo ${GEMINI_ARGS:-} \
+        (cd "$wt" && GEMINI_CLI_TRUST_WORKSPACE=true "${GEMINI_BIN:-gemini}" ${modelo[@]+"${modelo[@]}"} --yolo ${GEMINI_ARGS:-} \
           -p "$(cat "$prompt_arq")") | tee "$resumo" || status=$?
         ;;
     esac

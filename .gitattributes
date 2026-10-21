@@ -1,0 +1,4 @@
+# Os scripts rodam no bash (Linux, macOS, WSL). Com CRLF, o bash falha com "bad interpreter" ou "\r: command not found".
+*.sh text eol=lf
+agentes/openclaw/** text eol=lf
+agentes/claude-agents/*.md text eol=lf
