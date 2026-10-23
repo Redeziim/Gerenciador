@@ -32,6 +32,7 @@ Relacionados: [[outro-modulo]], [[outro]] · Símbolos: [[simbolos-<nome-do-modu
 
 ## Armadilhas
 - o que quebra fácil, invariantes, o que precisa mudar junto
+- valores repetidos fora do código (texto de tela, docs, `.env.example`) e onde estão, para mudar junto
 
 ## Testes
 - `<arquivo de teste>` — o que cobre

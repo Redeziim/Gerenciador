@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmark do mapa do código</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f3f2ef; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --ink3:#6e6d68;
+  --grid:#e4e3de; --axis:#c9c8c2; --rule:#dedcd6;
+  --com-0:#2a78d6; --com-1:#7fadea; --com-2:#b5d0f3;
+  --sem-0:#eb6834; --sem-1:#f2a07f; --sem-2:#f8cfbf;
+  --on-com-0:#ffffff; --on-com-1:#0b0b0b; --on-com-2:#0b0b0b;
+  --on-sem-0:#0b0b0b; --on-sem-1:#0b0b0b; --on-sem-2:#0b0b0b;
+  --explore-bg:#fdecd9; --explore-bar:#c86a10; --warn-bg:#fff4dc; --warn-bar:#b07800;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --page:#111110; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --ink3:#a3a298;
+    --grid:#2e2e2b; --axis:#4a4a45; --rule:#33332f;
+    --com-0:#3987e5; --sem-0:#d95926;
+    --on-com-0:#0b0b0b;
+    --explore-bg:#33261a; --explore-bar:#e0903a; --warn-bg:#2f2812; --warn-bar:#d9a21e;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#111110; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --ink3:#a3a298;
+  --grid:#2e2e2b; --axis:#4a4a45; --rule:#33332f;
+  --com-0:#3987e5; --sem-0:#d95926;
+  --on-com-0:#0b0b0b;
+  --explore-bg:#33261a; --explore-bar:#e0903a; --warn-bg:#2f2812; --warn-bar:#d9a21e;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.75rem;line-height:1.2;margin:0 0 8px}
+h2{font-size:1.25rem;margin:40px 0 4px;padding-top:8px}
+h3{font-size:1rem;margin:0 0 4px}
+p{margin:8px 0}
+.lead{color:var(--ink2);max-width:70ch}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:4px 24px;margin:16px 0;color:var(--ink2);font-size:.9rem}
+.meta b{color:var(--ink)}
+.sub{color:var(--ink2);font-size:.9rem;margin:0 0 12px;max-width:75ch}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px 14px 10px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.kpi .name{font-size:.85rem;color:var(--ink2)}
+.kpi .row{display:flex;align-items:center;gap:8px;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .row .v{font-weight:600;font-size:1.15rem}
+.kpi .row .t{color:var(--ink2);font-size:.8rem}
+.kpi .diff{margin-top:8px;font-weight:700;font-size:1.05rem;font-variant-numeric:tabular-nums}
+.kpi .diff small{font-weight:400;color:var(--ink2)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;flex:none}
+.sw.com{background:var(--com-0)} .sw.sem{background:var(--sem-0)}
+.sw.com1{background:var(--com-1)} .sw.sem1{background:var(--sem-1)}
+.sw.com2{background:var(--com-2)} .sw.sem2{background:var(--sem-2)}
+.grid2{display:grid;grid-template-columns:1fr;gap:16px}
+@media (min-width:800px){.grid2{grid-template-columns:1fr 1fr}.grid2 .wide{grid-column:1 / -1}}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.82rem;color:var(--ink2);margin:6px 0 4px}
+.legend span.i{display:inline-flex;align-items:center;gap:5px}
+.legend .pair{display:inline-flex;gap:2px}
+.chart{width:100%;min-height:120px}
+.chart svg{display:block;max-width:100%}
+svg text{font-family:inherit;fill:var(--ink2);font-size:11px}
+svg text.val{fill:var(--ink);font-weight:600;font-size:11.5px}
+svg text.grp{fill:var(--ink);font-size:12px}
+svg .gl{stroke:var(--grid);stroke-width:1}
+svg .ax{stroke:var(--axis);stroke-width:1}
+.c-com-0{fill:var(--com-0)}.c-com-1{fill:var(--com-1)}.c-com-2{fill:var(--com-2)}
+.c-sem-0{fill:var(--sem-0)}.c-sem-1{fill:var(--sem-1)}.c-sem-2{fill:var(--sem-2)}
+svg text.t-com-0{fill:var(--on-com-0)}svg text.t-com-1{fill:var(--on-com-1)}svg text.t-com-2{fill:var(--on-com-2)}
+svg text.t-sem-0{fill:var(--on-sem-0)}svg text.t-sem-1{fill:var(--on-sem-1)}svg text.t-sem-2{fill:var(--on-sem-2)}
+svg text.in{font-size:10.5px;font-weight:600}
+.seg-st{stroke:var(--surface);stroke-width:2}
+.cols{display:grid;grid-template-columns:1fr;gap:16px}
+@media (min-width:800px){.cols{grid-template-columns:1fr 1fr}}
+.cmd-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.cmd-head .n{margin-left:auto;color:var(--ink2);font-size:.85rem}
+ol.cmds{list-style:none;margin:0;padding:0;font-family:var(--mono);font-size:.78rem;counter-reset:c}
+ol.cmds li{counter-increment:c;display:flex;gap:8px;padding:3px 6px 3px 8px;border-left:3px solid transparent;border-radius:3px;overflow-wrap:anywhere;word-break:break-word}
+ol.cmds li::before{content:counter(c);flex:none;min-width:2ch;text-align:right;color:var(--ink3)}
+ol.cmds li.ex{background:var(--explore-bg);border-left-color:var(--explore-bar)}
+ol.cmds li code{font-family:inherit;white-space:pre-wrap}
+.keyline{font-size:.82rem;color:var(--ink2);margin:0 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.keyline i{display:inline-block;width:14px;height:12px;background:var(--explore-bg);border-left:3px solid var(--explore-bar)}
+.tw{overflow-x:auto;border:1px solid var(--rule);border-radius:12px;background:var(--surface);-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--ink2);background:var(--surface);white-space:nowrap}
+td.num,th.num{text-align:right}
+table.full th:first-child,table.full td:first-child{position:sticky;left:0;background:var(--surface);min-width:190px;z-index:1}
+table.full td,table.full th{white-space:nowrap}
+table.q td.files{font-family:var(--mono);font-size:.76rem}
+table.q td.files div{white-space:nowrap}
+.tag{display:inline-flex;align-items:center;gap:6px}
+.callout{border-left:4px solid var(--warn-bar);background:var(--warn-bg);padding:10px 14px;border-radius:6px;margin:14px 0}
+.callout b{display:block;margin-bottom:2px}
+ul.clean{padding-left:20px;margin:8px 0}
+ul.clean li{margin:4px 0}
+.big{font-variant-numeric:tabular-nums}
+.note{color:var(--ink2);font-size:.85rem}
+.ok{font-weight:600}
+</style>
+</head>
+<body>
+<main id="app">
+<noscript>Este relatório precisa de JavaScript para desenhar os gráficos. As tabelas ao final trazem os mesmos números.</noscript>
+</main>
+<script>
+const D = {"titulo": "Mapa do código: com e sem o gerenciador", "data": "2026-10-23", "projeto": "Projeto real (React 18 + Vite + Node/SQLite, ~860 arquivos rastreados)", "agente": "Codex CLI 0.163.0, modelo gpt-6-sol, raciocínio medium, sandbox workspace-write; as 6 execuções rodaram ao mesmo tempo", "condicoes": {"com": "Gerenciador completo: pedido escrito pelo gerente apontando arquivo, função e teste pelas notas; tarefa.sh cola o contexto-projeto.md e as notas dos módulos reservados; mapa gerado", "sem": "Clone sem .claude/ (sem briefing nem mapa), codex exec com o texto que um usuário digitaria; o AGENTS.md do repositório existe nos dois lados"}, "tarefas": {"ficha-txt": "Leitor de fichas: aceitar TXT em ANSI (Windows-1252) além de UTF-8, com teste (um módulo)", "dados-limite": "Histórico de dados: limite de 500 configurável por DICE_HISTORY_LIMIT (50 a 5000), com teste (servidor)", "condicoes": "Catálogo de condições: incluir Encantado e Silenciado e manter em dia o que depende dele (exige regenerar docs/EFEITOS_E_CONDICOES.md)"}, "execucoes": [{"tarefa": "ficha-txt", "condicao": "com", "tempo_s": 43.0, "tokens_entrada": 211169, "tokens_entrada_cache": 184576, "tokens_entrada_sem_cache": 26593, "tokens_saida": 2001, "tokens_raciocinio": 728, "comandos": 10, "comandos_por_tipo": {"exploracao": 7, "teste": 1, "outros": 2}, "bytes_lidos_por_tipo": {"exploracao": 12355, "teste": 160, "outros": 639}, "bytes_lidos": 13154, "pedido_inicial_bytes": 11098, "notas_coladas": ["fichas"], "contexto_medio_por_chamada_estimado": 19197, "arquivos_alterados": ["src/components/sheetReader.js", "tests/sheetReader.test.js"], "linhas_mais": 24, "linhas_menos": 2, "testes_da_tarefa": {"pass": 6, "fail": 0}, "checagem_independente": {"ok": true, "detalhe": "{\"ansi\": true, \"utf8-bom\": true, \"utf8\": true}"}, "comandos_executados": ["cat tests/sheetReader.test.js", "git status --short -- src/components/sheetReader.js tests/sheetReader.test.js", "rg -n -C 12 'readText|readSheetFile' src/components/sheetReader.js", "sed -n '1,95p' src/components/sheetReader.js", "node --version", "node --test tests/sheetReader.test.js", "git diff -- src/components/sheetReader.js tests/sheetReader.test.js", "git diff --check -- src/components/sheetReader.js tests/sheetReader.test.js", "git status --short", "node tests/sheetReader.test.js"]}, {"tarefa": "ficha-txt", "condicao": "sem", "tempo_s": 63.2, "tokens_entrada": 570483, "tokens_entrada_cache": 530304, "tokens_entrada_sem_cache": 40179, "tokens_saida": 3115, "tokens_raciocinio": 868, "comandos": 18, "comandos_por_tipo": {"exploracao": 10, "teste": 3, "outros": 5}, "bytes_lidos_por_tipo": {"exploracao": 88445, "teste": 658, "outros": 15442}, "bytes_lidos": 104545, "pedido_inicial_bytes": 321, "notas_coladas": [], "contexto_medio_por_chamada_estimado": 30025, "arquivos_alterados": ["src/components/sheetReader.js", "tests/sheetReader.test.js"], "linhas_mais": 24, "linhas_menos": 2, "testes_da_tarefa": {"pass": 4, "fail": 0}, "checagem_independente": {"ok": true, "detalhe": "{\"ansi\": true, \"utf8-bom\": true, \"utf8\": true}"}, "comandos_executados": ["cat .agents/skills/diagnosing-bugs/SKILL.md", "pwd && rg -n \\\"TextDecoder|readAsText|\\\\.txt|text/plain|arrayBuffer\\\" src test tests --glob '\"'!node_modules'\"' 2>/dev/null | head -200", "ls -la ~/vault-pessoal/Projetos/projeto 2>/dev/null; ls -la docs/agents; git status --short", "sed -n '1,240p' src/components/sheetReader.js; rg -n \\\"sheetReader|extractSheet|readSheet\\\" tests src/components/SheetImport.jsx src/components/SheetModels.jsx", "cat package.json; rg --files docs/adr GLOSSARY.md PLANO_DE_MELHORIAS.md PROMPT_PROXIMAS_ETAPAS.md 2>/dev/null; rg -n \"leitor de fichas|Windows-1252|codifica|ANS", "ls -la ~/vault-pessoal 2>/dev/null; find /tmp -name PROJECT_CONTEXT_FOR_DEV_VAULT.md -o -name pasta-a.md 2>/dev/null | head -20", "cat docs/adr/042-leitura-local-de-fichas-melhorada.md; sed -n '1,100p' docs/PROJECT_CONTEXT_FOR_DEV_VAULT.md; sed -n '1,100p' docs/agents/domain.md", "cat tests/sheetReader.test.js; sed -n '225,255p' src/components/sheetReader.js; node --version", "node --test tests/sheetReader.test.js", "node tests/sheetReader.test.js", "node tests/sheetReader.test.js", "node --test tests/sheetModelFromText.test.js", "npm run build", "node --test tests/sheetReader.test.js tests/sheetModelFromText.test.js", "npx vite build --help | rg -n \"configLoader|outDir|cacheDir\"; git diff --check; git status --short", "npm run build -- --configLoader runner", "git diff --check; git diff --stat; command -v playwright-cli || true; command -v fechar-sessao || true", "npm run dev"]}, {"tarefa": "dados-limite", "condicao": "com", "tempo_s": 64.0, "tokens_entrada": 232008, "tokens_entrada_cache": 208768, "tokens_entrada_sem_cache": 23240, "tokens_saida": 3853, "tokens_raciocinio": 1963, "comandos": 10, "comandos_por_tipo": {"exploracao": 8, "teste": 2, "outros": 0}, "bytes_lidos_por_tipo": {"exploracao": 29580, "teste": 3816, "outros": 0}, "bytes_lidos": 33396, "pedido_inicial_bytes": 14697, "notas_coladas": ["dados-bandeja", "nucleo"], "contexto_medio_por_chamada_estimado": 21092, "arquivos_alterados": ["server/diceHistory.js", "tests/diceHistory.test.js"], "linhas_mais": 36, "linhas_menos": 1, "testes_da_tarefa": {"pass": 4, "fail": 0}, "checagem_independente": {"ok": true, "detalhe": "lê env: True, faixa 50..5000 no código: True"}, "comandos_executados": ["sed -n '1,220p' server/index.js", "sed -n '1,260p' server/diceHistory.js", "sed -n '1,300p' tests/diceHistory.test.js", "rg -n \"createDiceHistory|DICE_HISTORY_LIMIT|dice_rolls\" server/app.js server/index.js server/diceHistory.js tests/diceHistory.test.js", "sed -n '105,145p' server/app.js", "node --test tests/diceHistory.test.js tests/diceHistoryPrivate.test.js", "git diff -- server/diceHistory.js tests/diceHistory.test.js", "git diff --check", "node --test --test-name-pattern='dice history limit|configured dice history' tests/diceHistory.test.js", "git status --short -- server/diceHistory.js server/index.js tests/diceHistory.test.js"]}, {"tarefa": "dados-limite", "condicao": "sem", "tempo_s": 149.3, "tokens_entrada": 1045441, "tokens_entrada_cache": 989696, "tokens_entrada_sem_cache": 55745, "tokens_saida": 9695, "tokens_raciocinio": 2582, "comandos": 28, "comandos_por_tipo": {"exploracao": 20, "teste": 3, "outros": 5}, "bytes_lidos_por_tipo": {"exploracao": 171124, "teste": 3961, "outros": 12780}, "bytes_lidos": 187865, "pedido_inicial_bytes": 257, "notas_coladas": [], "contexto_medio_por_chamada_estimado": 36050, "arquivos_alterados": [".env.example", "docs/DICE_HISTORY.md", "server/app.js", "server/diceHistory.js", "src/components/DiceHistory.jsx", "tests/diceHistoryLimit.test.js"], "linhas_mais": 52, "linhas_menos": 5, "testes_da_tarefa": {"pass": 2, "fail": 0}, "checagem_independente": {"ok": true, "detalhe": "lê env: True, faixa 50..5000 no código: True"}, "comandos_executados": ["pwd && rg -n \"500|DICE_HISTORY|dice history|diceHistory|rollHistory\" server src test tests 2>/dev/null", "ls -la ~/vault-pessoal/Projetos/projeto ~/vault-pessoal/pasta-a.md 2>&1", "rg --files -g 'AGENTS.md' -g 'package.json' -g '*dice*' -g '*Dice*' -g '*test*' -g '*spec*' | head -100", "git status --short && cat package.json", "cat server/diceHistory.js && cat tests/diceHistory.test.js", "cat src/components/DiceHistory.jsx && sed -n '1,180p' tests/helpers.js 2>/dev/null && sed -n '1,190p' server/app.js", "cat .agents/skills/react-best-practices/SKILL.md 2>/dev/null | head -100; rg -n 'DICE_HISTORY_LIMIT|DICE_RECEIPT_TTL|createDiceHistory|diceHistoryHasMore' .env*", "find ~ /tmp -path '*/vault-pessoal/Projetos/projeto/PROJECT_CONTEXT_FOR_DEV_VAULT.md' -print 2>/dev/null | head -10; rg -n 'dice|rolagem|his", "cat src/components/DiceHistory.jsx; cat docs/agents/domain.md; cat docs/agents/issue-tracker.md", "node --version; rg --files /tmp ~ 2>/dev/null | rg 'vault-pessoal/(pasta-a|Projetos/projeto)' | head -20", "cat docs/DICE_HISTORY.md; rg -n 'process.env|_LIMIT' server | head -90; rg -n 'DICE|PORT|env' README.md .env.example docs/*.md 2>/dev/null | head -70", "sed -n '242,251p' server/app.js; sed -n '1,9p' server/diceHistory.js; git status --short", "node --test tests/diceHistory.test.js tests/diceHistoryPrivate.test.js", "cat .env.example; rg -n 'diceHistoryLimit|DICE_HISTORY_LIMIT|diceHistoryLimit' server src tests docs .env.example | head -35", "git diff --check && git status --short", "npm run build", "node --test --test-name-pattern='DICE_HISTORY_LIMIT|configured dice history limit' tests/diceHistory.test.js", "node -e \\\"const fs=require('fs');const p='tests/diceHistory.test.js';const s=fs.readFileSync(p,'utf8');const start=s.indexOf(\\\\\\\"test('DICE_HISTORY_LIMIT\\\\\\\");c", "git diff --check && sed -n '1,18p' tests/diceHistory.test.js && sed -n '1,80p' tests/diceHistoryLimit.test.js", "node --test tests/diceHistoryLimit.test.js", "npx vite --help | rg -n 'configLoader|config'", "npm run build -- --configLoader runner", "node tests/diceHistoryLimit.test.js", "command -v fechar-sessao || true; ls -ld ~/vault-pessoal 2>/dev/null || true; git status --short", "git diff --stat && git diff --check && git diff -- server/diceHistory.js server/app.js src/components/DiceHistory.jsx tests/diceHistory.test.js", "sed -n '1,30p' tests/tray.test.js; sed -n '1,25p' tests/diceGeometry.test.js; rg -n 'diceHistoryLimit|diceHistoryHasMore' tests src | head -25", "node tests/diceHistoryLimit.test.js", "git diff --check && git status --short && rg --files .agents .codex scripts 2>/dev/null | rg 'fechar-sessao|vault-pessoal' | head -20"]}, {"tarefa": "condicoes", "condicao": "com", "tempo_s": 24.0, "tokens_entrada": 168144, "tokens_entrada_cache": 147712, "tokens_entrada_sem_cache": 20432, "tokens_saida": 1275, "tokens_raciocinio": 194, "comandos": 9, "comandos_por_tipo": {"exploracao": 7, "teste": 1, "outros": 1}, "bytes_lidos_por_tipo": {"exploracao": 31937, "teste": 163, "outros": 24}, "bytes_lidos": 32124, "pedido_inicial_bytes": 10794, "notas_coladas": ["combate-efeitos"], "contexto_medio_por_chamada_estimado": 16814, "arquivos_alterados": ["docs/EFEITOS_E_CONDICOES.md", "src/shared/conditionCatalog.js", "tests/conditionCatalog.test.js"], "linhas_mais": 16, "linhas_menos": 3, "testes_da_tarefa": {"pass": 6, "fail": 0}, "checagem_independente": {"ok": true, "detalhe": "catálogo: True, doc tem as duas: True, doc igual ao gerado: True"}, "comandos_executados": ["sed -n '1,240p' src/shared/conditionCatalog.js", "git status --short -- src/shared/conditionCatalog.js docs/EFEITOS_E_CONDICOES.md tests/conditionCatalog.test.js", "sed -n '1,240p' tests/conditionCatalog.test.js", "node scripts/conditionsDoc.js", "git diff --stat -- src/shared/conditionCatalog.js docs/EFEITOS_E_CONDICOES.md tests/conditionCatalog.test.js", "git status --short", "git diff --check", "node --test tests/conditionCatalog.test.js", "git diff -- src/shared/conditionCatalog.js docs/EFEITOS_E_CONDICOES.md tests/conditionCatalog.test.js"]}, {"tarefa": "condicoes", "condicao": "sem", "tempo_s": 59.1, "tokens_entrada": 434637, "tokens_entrada_cache": 399744, "tokens_entrada_sem_cache": 34893, "tokens_saida": 2837, "tokens_raciocinio": 674, "comandos": 19, "comandos_por_tipo": {"exploracao": 15, "teste": 1, "outros": 3}, "bytes_lidos_por_tipo": {"exploracao": 103529, "teste": 233, "outros": 5289}, "bytes_lidos": 109051, "pedido_inicial_bytes": 253, "notas_coladas": [], "contexto_medio_por_chamada_estimado": 21732, "arquivos_alterados": ["docs/EFEITOS_E_CONDICOES.md", "src/shared/conditionCatalog.js", "tests/conditionCatalog.test.js"], "linhas_mais": 20, "linhas_menos": 3, "testes_da_tarefa": {"pass": 6, "fail": 0}, "checagem_independente": {"ok": true, "detalhe": "catálogo: True, doc tem as duas: True, doc igual ao gerado: True"}, "comandos_executados": ["pwd && rg -n \"Encantado|Silenciado|catálogo de condições|catalogo de condições|conditionsCatalog|conditionCatalog|CONDITIONS\" src server test tests docs 2>/dev/", "rg --files -g 'AGENTS.md' -g 'PROJECT_CONTEXT_FOR_DEV_VAULT.md' -g 'pasta-b.md' -g 'Chat-Contexto-*.md' -g 'pasta-a.md' -g 'SKILL.md' | h", "git status --short && ls -la ~/vault-pessoal/Projetos/projeto 2>/dev/null | head -35", "cat src/shared/conditionCatalog.js && cat tests/conditionCatalog.test.js", "cat package.json && cat docs/agents/domain.md && cat docs/agents/issue-tracker.md", "cat src/shared/effectLibrary.js && cat tests/effectLibrary.test.js && cat scripts/conditionsDoc.js", "cat docs/PROJECT_CONTEXT_FOR_DEV_VAULT.md && rg -n \"Encantado|Silenciado|condiç|condition\" PLANO_DE_MELHORIAS.md PROMPT_PROXIMAS_ETAPAS.md docs/adr docs/PROJECT", "rg -n \\\"Encantado|Silenciado|Gerais \\\\(|## Tipos de efeito|Mental \\\\||Controle e incapacidade\\\" docs/EFEITOS_E_CONDICOES.md && rg -n \\\"CONDITION_CATALOG|geral:|", "cat tests/conditionCatalog.test.js && rg -n \"geral|CONDITION_CATALOG|BASIC_PACK|conditionsNamed|searchConditions\" src/shared/effectLibrary.js tests/effectLibrar", "ls -la ~/vault-pessoal 2>&1; rg --files /tmp ~/projetos 2>/dev/null | rg '(pasta-b|pasta-c|pasta-a)\\\\.md\"'$'\"' | he", "sed -n '1,75p' tests/effectLibrary.test.js && sed -n '85,145p' src/shared/effectLibrary.js && sed -n '240,265p' src/shared/conditionCatalog.js", "rg -n \"efeitos|condiç|catálogo\" docs/adr/030* docs/adr/031* docs/adr/032* GLOSSARY.md README.md 2>/dev/null | head -70; node --version; test -d node_modules && ", "node scripts/conditionsDoc.js && node --test tests/conditionCatalog.test.js tests/effectLibrary.test.js", "git diff --check && git diff --stat && git diff -- docs/EFEITOS_E_CONDICOES.md src/shared/conditionCatalog.js tests/conditionCatalog.test.js", "npm cache ls vite | head -8; ls <projeto>/node_modules/vite 2>/dev/null | head -5; rg --files -g 'playwright*' -g 'vite.config.*' | head -20", "npm ci --offline --no-audit --no-fund", "npm run build", "ls -ld node_modules node_modules/.bin node_modules/vite; ls -l node_modules/.bin/vite; node node_modules/vite/bin/vite.js --help | head -55; git status --short", "npm run dev"]}], "custo_unico_do_mapa": {"descricao": "Escrever o contexto-projeto.md e as 13 notas, uma vez, com subagentes Claude Sonnet medium", "tokens_claude_sonnet": 484637, "gerar_indice_e_simbolos_s": 0.2}, "qualidade": ["As 6 soluções passaram nos testes da tarefa e na checagem independente (TXT em ANSI lido certo; limite lido do ambiente com faixa 50..5000; catálogo e doc em dia, doc idêntico ao gerado pelo script).", "Suíte completa (376 testes): passou nos 6, a não ser por um teste instável já existente (\"arquivos preparados expiram…\"), que falhou e passou alternadamente nos dois lados quando rodado de novo; não tem relação com as mudanças.", "dados-limite: a versão sem gerenciador foi mais completa. Além do servidor, atualizou o texto \"até 500 registros\" em DiceHistory.jsx, o docs/DICE_HISTORY.md e o .env.example (6 arquivos). A versão com gerenciador ficou nos 3 arquivos reservados pelo gerente (regra \"mexa só nestes caminhos\") e a nota de dados não citava esse texto nem o doc. Lição: as notas devem dizer o que muda junto, e o gerente deve reservar docs e textos de tela que repetem o valor.", "ficha-txt e condicoes: mesmos arquivos alterados nos dois lados; nas duas condições o agente regenerou o doc das condições."], "limites": ["Uma execução por tarefa e condição (n=1 × 3 tarefas): LLMs variam de uma execução para outra, então trate os números como ordem de grandeza.", "As 6 rodaram em paralelo, o que afeta o tempo dos dois lados igualmente.", "No lado com gerenciador, o pedido traz as indicações do gerente; isso faz parte do método, não é só o mapa.", "Não inclui os tokens do próprio gerente (Opus) ao ler o índice e a nota para escrever o pedido, nem o custo de manter as notas.", "Contexto por chamada é estimado: tokens de entrada ÷ (comandos + 1).", "Cada chamada do Codex começa com ~27 mil tokens de prompt de sistema (medido numa sondagem), por isso a entrada é alta mesmo em tarefas pequenas; quase tudo vem do cache."]};
+</script>
+<script>
+"use strict";
+/* ---------- formatação ---------- */
+const nf = (x, d = 0) => Number(x).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const kbOf = b => b / 1024;
+const fmtKB = b => nf(kbOf(b), 1) + ' KB';
+const sgn = x => (x > 0 ? '+' : x < 0 ? '−' : '');
+function pct(com, sem) { return sem === 0 ? null : (com - sem) / sem * 100; }
+function fmtPct(p) { return p === null ? 'n/d' : sgn(p) + nf(Math.abs(p), 1) + '%'; }
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+const sum = a => a.reduce((s, x) => s + x, 0);
+
+/* ---------- dados derivados (puro) ---------- */
+const TAREFAS = Object.keys(D.tarefas);
+const CONDS = ['com', 'sem'];
+const NOMECOND = { com: 'Com gerenciador', sem: 'Sem gerenciador' };
+function run(t, c) { return D.execucoes.find(e => e.tarefa === t && e.condicao === c); }
+function total(c, f) { return sum(TAREFAS.map(t => f(run(t, c)))); }
+
+const METRICAS = [
+  { id: 'tempo', nome: 'Tempo', f: e => e.tempo_s, fmt: v => nf(v, 1) + ' s' },
+  { id: 'ent', nome: 'Tokens de entrada', f: e => e.tokens_entrada, fmt: v => nf(v) },
+  { id: 'semc', nome: 'Tokens de entrada sem cache', f: e => e.tokens_entrada_sem_cache, fmt: v => nf(v) },
+  { id: 'saida', nome: 'Tokens de saída', f: e => e.tokens_saida, fmt: v => nf(v) },
+  { id: 'cmd', nome: 'Comandos', f: e => e.comandos, fmt: v => nf(v) },
+  { id: 'bytes', nome: 'Bytes lidos para o contexto', f: e => e.bytes_lidos, fmt: fmtKB }
+];
+
+/* ---------- escalas (puro) ---------- */
+function niceScale(maxV, target = 4) {
+  if (!isFinite(maxV) || maxV <= 0) return { max: 1, step: 0.25 };
+  const raw = maxV / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const r = raw / mag;
+  const m = r <= 1 ? 1 : r <= 2 ? 2 : r <= 2.5 ? 2.5 : r <= 5 ? 5 : 10;
+  const step = m * mag;
+  return { max: Math.ceil(maxV / step - 1e-9) * step, step };
+}
+
+/* ---------- especificações dos gráficos (puro) ---------- */
+function seg(v, tone, name) { return { v, tone, name }; }
+function specs() {
+  const por = (fn) => TAREFAS.map(t => ({ label: t, bars: CONDS.map(c => ({ cond: c, segs: fn(run(t, c)) })) }));
+  const mk = (extra) => Object.assign({ valFmt: v => nf(v), tickFmt: v => nf(v), h: 300 }, extra);
+  return [
+    mk({ id: 'tempo', titulo: 'Tempo por tarefa (segundos)', groups: por(e => [seg(e.tempo_s, 0, 'Tempo')]),
+      valFmt: v => nf(v, 1), tickFmt: v => nf(v), segNames: [] }),
+    mk({ id: 'entrada', titulo: 'Tokens de entrada por tarefa (tokens)', groups: por(e => [seg(e.tokens_entrada_cache, 1, 'Do cache'), seg(e.tokens_entrada_sem_cache, 0, 'Sem cache')]),
+      segNames: ['Sem cache', 'Do cache'], segTones: [0, 1] }),
+    mk({ id: 'saida', titulo: 'Tokens de saída e de raciocínio por tarefa (tokens)',
+      groups: TAREFAS.map(t => ({ label: t, bars: [
+        { cond: 'com', segs: [seg(run(t, 'com').tokens_saida, 0, 'Saída')] },
+        { cond: 'sem', segs: [seg(run(t, 'sem').tokens_saida, 0, 'Saída')] },
+        { cond: 'com', segs: [seg(run(t, 'com').tokens_raciocinio, 1, 'Raciocínio')] },
+        { cond: 'sem', segs: [seg(run(t, 'sem').tokens_raciocinio, 1, 'Raciocínio')] }] })),
+      segNames: ['Saída', 'Raciocínio'], segTones: [0, 1] }),
+    mk({ id: 'cmds', titulo: 'Comandos por tipo e tarefa (quantidade)', groups: por(e => [seg(e.comandos_por_tipo.exploracao, 0, 'Exploração'), seg(e.comandos_por_tipo.teste, 1, 'Teste'), seg(e.comandos_por_tipo.outros, 2, 'Outros')]),
+      segNames: ['Exploração', 'Teste', 'Outros'], segTones: [0, 1, 2], tickFmt: v => nf(v) }),
+    mk({ id: 'bytes', titulo: 'Bytes lidos para o contexto, por tipo de comando (KB)', groups: por(e => [seg(kbOf(e.bytes_lidos_por_tipo.exploracao), 0, 'Exploração'), seg(kbOf(e.bytes_lidos_por_tipo.teste), 1, 'Teste'), seg(kbOf(e.bytes_lidos_por_tipo.outros), 2, 'Outros')]),
+      segNames: ['Exploração', 'Teste', 'Outros'], segTones: [0, 1, 2], valFmt: v => nf(v, 1), tickFmt: v => nf(v), noInner: true }),
+    mk({ id: 'ctx', titulo: 'Contexto médio por chamada (tokens, estimado)', groups: por(e => [seg(e.contexto_medio_por_chamada_estimado, 0, 'Contexto médio (estimado)')]),
+      segNames: [], estimado: true }),
+    mk({ id: 'pedido', titulo: 'Pedido inicial + bytes lidos nos comandos (KB)', wide: true,
+      groups: por(e => [seg(kbOf(e.pedido_inicial_bytes), 1, 'Pedido inicial'), seg(kbOf(e.bytes_lidos), 0, 'Lido pelos comandos')]),
+      segNames: ['Lido pelos comandos', 'Pedido inicial'], segTones: [0, 1], valFmt: v => nf(v, 1), tickFmt: v => nf(v) })
+  ];
+}
+
+/* ---------- geometria (puro) ---------- */
+function layout(cfg, W) {
+  W = Math.max(260, W);
+  const H = cfg.h, mb = 30, mr = 8;
+  const totals = cfg.groups.map(g => g.bars.map(b => sum(b.segs.map(s => s.v))));
+  const maxT = Math.max.apply(null, [].concat.apply([], totals));
+  const sc = niceScale(maxT);
+  const ticks = [];
+  for (let v = 0; v <= sc.max + sc.step * 1e-6; v += sc.step) ticks.push(v);
+  const tickLabels = ticks.map(v => cfg.tickFmt(v));
+  const ml = Math.max(30, Math.max.apply(null, tickLabels.map(s => s.length)) * 6.4 + 12);
+  const ng = cfg.groups.length, nb = cfg.groups[0].bars.length;
+  const gw = (W - ml - mr) / ng;
+  const gapB = nb > 2 ? 3 : 6;
+  const barW = Math.max(8, Math.min(56, (gw * 0.82 - gapB * (nb - 1)) / nb));
+  const groupW = nb * barW + (nb - 1) * gapB;
+  const vlabels = [].concat.apply([], cfg.groups.map(g => g.bars.map(b => cfg.valFmt(sum(b.segs.map(s => s.v))))));
+  const maxLW = Math.max.apply(null, vlabels.map(s => s.length * 6.8));
+  const rotate = maxLW > barW + gapB - 2;
+  const mt = rotate ? 12 + maxLW : 22;
+  const ph = H - mt - mb;
+  const y = v => mt + ph * (1 - v / sc.max);
+  const bars = [];
+  cfg.groups.forEach((g, gi) => {
+    const x0 = ml + gi * gw + (gw - groupW) / 2;
+    g.bars.forEach((b, bi) => {
+      const x = x0 + bi * (barW + gapB);
+      let acc = 0; const segs = [];
+      b.segs.forEach(s => {
+        if (!(s.v > 0)) return;
+        const yTop = y(acc + s.v), yBot = y(acc);
+        segs.push({ x, w: barW, y: yTop, h: yBot - yTop, v: s.v, tone: s.tone, name: s.name, inner: !cfg.noInner && (yBot - yTop) >= 15 && barW >= 24 });
+        acc += s.v;
+      });
+      const tot = acc;
+      bars.push({ gi, cond: b.cond, x, w: barW, segs, total: tot, label: cfg.valFmt(tot), lx: x + barW / 2, ly: y(tot) - 5 });
+    });
+  });
+  const groups = cfg.groups.map((g, gi) => ({ label: g.label, x: ml + gi * gw + gw / 2 }));
+  return { W, H, ml, mt, mb, ph, rotate, ticks: ticks.map((v, i) => ({ v, y: y(v), label: tickLabels[i] })), bars, groups, base: y(0), max: sc.max };
+}
+
+/* ---------- SVG (puro, devolve string) ---------- */
+function topRound(x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, h, w / 2));
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+const f1 = x => (Math.round(x * 10) / 10);
+function svgChart(cfg, W) {
+  const L = layout(cfg, W);
+  const stacked = cfg.groups[0].bars[0].segs.length > 1;
+  let s = `<svg width="${L.W}" height="${L.H}" viewBox="0 0 ${L.W} ${L.H}" role="img" aria-label="${esc(cfg.titulo)}">`;
+  L.ticks.forEach(t => {
+    s += `<line class="${t.v === 0 ? 'ax' : 'gl'}" x1="${f1(L.ml)}" x2="${f1(L.W - 8)}" y1="${f1(t.y)}" y2="${f1(t.y)}"/>`;
+    s += `<text x="${f1(L.ml - 6)}" y="${f1(t.y + 3.5)}" text-anchor="end">${esc(t.label)}</text>`;
+  });
+  L.bars.forEach(b => {
+    const top = b.segs.length - 1;
+    b.segs.forEach((sg, i) => {
+      const cls = `c-${b.cond}-${sg.tone}${stacked ? ' seg-st' : ''}`;
+      const tip = `<title>${esc(NOMECOND[b.cond])} – ${esc(sg.name)}: ${esc(cfg.valFmt(sg.v))}</title>`;
+      if (i === top) s += `<path class="${cls}" d="${topRound(f1(sg.x), f1(sg.y), f1(sg.w), f1(sg.h), 4)}">${tip}</path>`;
+      else s += `<rect class="${cls}" x="${f1(sg.x)}" y="${f1(sg.y)}" width="${f1(sg.w)}" height="${f1(sg.h)}">${tip}</rect>`;
+      if (stacked && sg.inner) s += `<text class="in t-${b.cond}-${sg.tone}" x="${f1(sg.x + sg.w / 2)}" y="${f1(sg.y + sg.h / 2 + 3.5)}" text-anchor="middle">${esc(cfg.valFmt(sg.v))}</text>`;
+    });
+    if (L.rotate) s += `<text class="val" transform="translate(${f1(b.lx + 4)},${f1(b.ly + 1)}) rotate(-90)" text-anchor="start">${esc(b.label)}</text>`;
+    else s += `<text class="val" x="${f1(b.lx)}" y="${f1(b.ly)}" text-anchor="middle">${esc(b.label)}</text>`;
+  });
+  L.groups.forEach(g => { s += `<text class="grp" x="${f1(g.x)}" y="${f1(L.base + 18)}" text-anchor="middle">${esc(g.label)}</text>`; });
+  return s + '</svg>';
+}
+
+/* ---------- legenda (HTML) ---------- */
+function legendHTML(cfg) {
+  let h = `<div class="legend"><span class="i"><span class="sw com"></span>Com gerenciador</span><span class="i"><span class="sw sem"></span>Sem gerenciador</span>`;
+  if (cfg.segNames && cfg.segNames.length > 1) {
+    cfg.segNames.forEach((n, i) => {
+      const t = cfg.segTones[i];
+      h += `<span class="i"><span class="pair"><span class="sw com${t || ''}"></span><span class="sw sem${t || ''}"></span></span>${esc(n)}</span>`;
+    });
+  }
+  return h + '</div>';
+}
+
+/* ---------- classificação de comandos ---------- */
+const RE_EXPLORA = /^(?:pwd\s*&&\s*)?(?:rg|ls|sed|cat|find|head|git\s+(?:status|diff))\b/;
+const ehExploracao = c => RE_EXPLORA.test(c.trim());
+
+/* ---------- indicadores ---------- */
+function kpiData() {
+  return METRICAS.map(m => {
+    const com = total('com', m.f), sem = total('sem', m.f);
+    return { id: m.id, nome: m.nome, com, sem, p: pct(com, sem), fmt: m.fmt };
+  });
+}
+function custoMapa() {
+  const dEnt = (total('sem', e => e.tokens_entrada) - total('com', e => e.tokens_entrada)) / TAREFAS.length;
+  const dSem = (total('sem', e => e.tokens_entrada_sem_cache) - total('com', e => e.tokens_entrada_sem_cache)) / TAREFAS.length;
+  const custo = D.custo_unico_do_mapa.tokens_claude_sonnet;
+  return { dEnt, dSem, custo, razEnt: dEnt > 0 ? custo / dEnt : null, razSem: dSem > 0 ? custo / dSem : null };
+}
+
+/* ---------- montagem da página ---------- */
+function html() {
+  const K = kpiData(), C = custoMapa();
+  const kp = id => K.find(k => k.id === id);
+  const pedidoCom = total('com', e => e.pedido_inicial_bytes), pedidoSem = total('sem', e => e.pedido_inicial_bytes);
+  let h = '';
+  h += `<h1>${esc(D.titulo)}</h1>`;
+  h += `<p class="lead">Medimos o mesmo agente fazendo as mesmas 3 tarefas num projeto real, com e sem o gerenciador (briefing e mapa do código). Comparamos tempo, tokens, comandos e leitura de arquivos.</p>`;
+  h += `<div class="meta"><div><b>Data:</b> 23/10/2026</div><div><b>Projeto:</b> ${esc(D.projeto)}</div><div><b>Agente:</b> ${esc(D.agente)}</div></div>`;
+  h += `<p class="lead">Com gerenciador, as 3 tarefas somaram <b>${fmtPct(kp('tempo').p)}</b> de tempo, <b>${fmtPct(kp('ent').p)}</b> de tokens de entrada e <b>${fmtPct(kp('cmd').p)}</b> de comandos. Foi uma execução por tarefa e condição: leia como ordem de grandeza.</p>`;
+
+  h += `<h2>Totais das 3 tarefas</h2><p class="sub">Soma das 3 tarefas. Diferença = (com − sem) ÷ sem. Negativo significa que o lado com gerenciador gastou menos.</p><div class="kpis">`;
+  K.forEach(k => {
+    h += `<div class="card kpi"><div class="name">${esc(k.nome)}</div>
+      <div class="row"><span class="sw com"></span><span class="v">${esc(k.fmt(k.com))}</span><span class="t">com</span></div>
+      <div class="row"><span class="sw sem"></span><span class="v">${esc(k.fmt(k.sem))}</span><span class="t">sem</span></div>
+      <div class="diff">${k.p !== null && k.p < 0 ? '▼ ' : k.p > 0 ? '▲ ' : ''}${fmtPct(k.p)} <small>com vs sem</small></div></div>`;
+  });
+  h += `</div>`;
+
+  h += `<h2>Gráficos por tarefa</h2><p class="sub">Cada tarefa tem uma barra azul (com gerenciador) e uma laranja (sem). Eixos começam em zero. Tarefas: ${TAREFAS.map(t => `<b>${esc(t)}</b>`).join(', ')} (descrições na seção de metodologia).</p><div class="grid2" id="charts">`;
+  specs().forEach(c => {
+    h += `<div class="card${c.wide ? ' wide' : ''}"><h3>${esc(c.titulo)}</h3>`;
+    if (c.estimado) h += `<p class="note" style="margin:0">Estimado: tokens de entrada ÷ (comandos + 1). Não é medido.</p>`;
+    if (c.id === 'bytes') h += `<p class="note" style="margin:0">1 KB = 1.024 bytes. O total sobre a barra é o valor lido, em KB.</p>`;
+    if (c.id === 'pedido') h += `<p class="note" style="margin:0">O lado com gerenciador começa com um pedido maior (${fmtKB(pedidoCom)} vs ${fmtKB(pedidoSem)} nas 3 tarefas) e, mesmo somando o pedido, termina com ${fmtPct(pct(total('com', e => e.pedido_inicial_bytes + e.bytes_lidos), total('sem', e => e.pedido_inicial_bytes + e.bytes_lidos)))} de contexto de texto.</p>`;
+    h += legendHTML(c) + `<div class="chart" data-id="${c.id}"></div></div>`;
+  });
+  h += `</div>`;
+
+  // O que o agente fez
+  const L = 'dados-limite';
+  const rc = run(L, 'com'), rs = run(L, 'sem');
+  h += `<h2>O que o agente fez</h2><p class="sub">Comandos de <b>${L}</b>, na ordem em que o Codex os executou. O destaque laranja marca comandos de busca e leitura (rg, ls, sed, cat, find, head, git status e diff), por prefixo do comando. Alguns comandos longos vieram cortados nos dados.</p>
+    <p class="keyline"><i></i> comando de exploração</p><div class="cols">`;
+  [['com', rc], ['sem', rs]].forEach(([c, r]) => {
+    const nEx = r.comandos_executados.filter(ehExploracao).length;
+    h += `<div class="card"><div class="cmd-head"><span class="sw ${c}"></span><h3 style="margin:0">${NOMECOND[c]}</h3><span class="n">${r.comandos_executados.length} comandos · ${nEx} em destaque</span></div><ol class="cmds">`;
+    r.comandos_executados.forEach(cm => { h += `<li class="${ehExploracao(cm) ? 'ex' : ''}"><code>${esc(cm)}</code></li>`; });
+    h += `</ol></div>`;
+  });
+  h += `</div>`;
+
+  // Qualidade
+  h += `<h2>Qualidade</h2><p class="sub">Testes da tarefa, checagem independente e arquivos alterados nas 6 execuções.</p><div class="tw"><table class="q"><thead><tr><th>Tarefa</th><th>Condição</th><th>Testes da tarefa</th><th>Checagem independente</th><th>Arquivos alterados</th></tr></thead><tbody>`;
+  TAREFAS.forEach(t => CONDS.forEach(c => {
+    const r = run(t, c);
+    h += `<tr><td>${esc(t)}</td><td><span class="tag"><span class="sw ${c}"></span>${c === 'com' ? 'com' : 'sem'}</span></td>
+      <td>${r.testes_da_tarefa.pass} passaram, ${r.testes_da_tarefa.fail} falharam</td>
+      <td><span class="ok">${r.checagem_independente.ok ? 'OK' : 'Falhou'}</span><br><span class="note">${esc(r.checagem_independente.detalhe)}</span></td>
+      <td class="files">${r.arquivos_alterados.map(a => `<div>${esc(a)}</div>`).join('')}<div class="note" style="font-family:inherit">${r.arquivos_alterados.length} arquivo(s) · +${r.linhas_mais} / −${r.linhas_menos} linhas</div></td></tr>`;
+  }));
+  h += `</tbody></table></div>`;
+  h += `<ul class="clean">`;
+  D.qualidade.forEach((q, i) => { if (i !== 2) h += `<li>${esc(q)}</li>`; });
+  h += `</ul>`;
+  h += `<div class="callout"><b>Atenção: em dados-limite, o lado sem gerenciador foi mais completo</b>${esc(D.qualidade[2])}</div>`;
+
+  // Custo
+  h += `<h2>Custo único do mapa</h2><p class="sub">${esc(D.custo_unico_do_mapa.descricao)}.</p><div class="kpis">
+    <div class="card kpi"><div class="name">Gasto uma vez (Claude Sonnet)</div><div class="row"><span class="v">${nf(C.custo)}</span><span class="t">tokens</span></div><div class="note" style="margin-top:6px">Gerar índice e símbolos: ${nf(D.custo_unico_do_mapa.gerar_indice_e_simbolos_s, 1)} s</div></div>
+    <div class="card kpi"><div class="name">Economia média por tarefa, tokens de entrada (total)</div><div class="row"><span class="v">${nf(C.dEnt)}</span><span class="t">tokens (Codex)</span></div></div>
+    <div class="card kpi"><div class="name">Economia média por tarefa, tokens de entrada sem cache</div><div class="row"><span class="v">${nf(C.dSem)}</span><span class="t">tokens (Codex)</span></div></div></div>
+    <p>Economia média = (soma sem − soma com) ÷ 3 tarefas. São modelos e cobranças diferentes: o custo do mapa é em Claude Sonnet, a economia é em Codex. Os tokens não se somam nem se trocam um a um, e a maior parte da entrada do Codex vem do cache, que custa menos.</p>
+    <p>Ordem de grandeza: o custo único (${nf(C.custo, 0)} tokens Sonnet) é um total que não separa o que veio do cache, então a comparação justa é com a economia total de entrada por tarefa (~${nf(C.dEnt, 0)} tokens): o mapa se paga em cerca de uma tarefa. Os dados não permitem fazer a conta só com tokens sem cache. Não há ponto de equilíbrio exato: depende do preço de cada modelo, de manter as notas atualizadas e do custo do gerente, que não entrou na conta.</p>`;
+
+  // Metodologia
+  h += `<h2>Metodologia e limites</h2><div class="cols"><div class="card"><h3><span class="sw com"></span> Com gerenciador</h3><p>${esc(D.condicoes.com)}</p></div><div class="card"><h3><span class="sw sem"></span> Sem gerenciador</h3><p>${esc(D.condicoes.sem)}</p></div></div>
+    <h3 style="margin-top:20px">Tarefas</h3><ul class="clean">`;
+  TAREFAS.forEach(t => { h += `<li><b>${esc(t)}:</b> ${esc(D.tarefas[t])}</li>`; });
+  h += `</ul><h3>Limites do teste</h3><ul class="clean">`;
+  D.limites.forEach(l => { h += `<li>${esc(l)}</li>`; });
+  h += `</ul>`;
+
+  // Tabela completa
+  h += `<h2>Tabela completa</h2><p class="sub">Todas as métricas das 6 execuções. Role para os lados em telas estreitas.</p><div class="tw"><table class="full"><thead><tr><th>Métrica</th>`;
+  const cols = []; TAREFAS.forEach(t => CONDS.forEach(c => cols.push(run(t, c))));
+  cols.forEach(r => { h += `<th class="num">${esc(r.tarefa)}<br><span class="tag"><span class="sw ${r.condicao}"></span>${r.condicao}</span></th>`; });
+  h += `</tr></thead><tbody>`;
+  const rows = [
+    ['Tempo (s)', r => nf(r.tempo_s, 1)],
+    ['Tokens de entrada', r => nf(r.tokens_entrada)],
+    ['  do cache', r => nf(r.tokens_entrada_cache)],
+    ['  sem cache', r => nf(r.tokens_entrada_sem_cache)],
+    ['Tokens de saída', r => nf(r.tokens_saida)],
+    ['Tokens de raciocínio', r => nf(r.tokens_raciocinio)],
+    ['Comandos', r => nf(r.comandos)],
+    ['  exploração', r => nf(r.comandos_por_tipo.exploracao)],
+    ['  teste', r => nf(r.comandos_por_tipo.teste)],
+    ['  outros', r => nf(r.comandos_por_tipo.outros)],
+    ['Bytes lidos (KB)', r => nf(kbOf(r.bytes_lidos), 1)],
+    ['  exploração (KB)', r => nf(kbOf(r.bytes_lidos_por_tipo.exploracao), 1)],
+    ['  teste (KB)', r => nf(kbOf(r.bytes_lidos_por_tipo.teste), 1)],
+    ['  outros (KB)', r => nf(kbOf(r.bytes_lidos_por_tipo.outros), 1)],
+    ['Pedido inicial (KB)', r => nf(kbOf(r.pedido_inicial_bytes), 1)],
+    ['Contexto médio por chamada (estimado)', r => nf(r.contexto_medio_por_chamada_estimado)],
+    ['Linhas adicionadas', r => nf(r.linhas_mais)],
+    ['Linhas removidas', r => nf(r.linhas_menos)],
+    ['Arquivos alterados', r => nf(r.arquivos_alterados.length)],
+    ['Testes da tarefa (passaram/falharam)', r => r.testes_da_tarefa.pass + ' / ' + r.testes_da_tarefa.fail],
+    ['Checagem independente', r => r.checagem_independente.ok ? 'OK' : 'Falhou'],
+    ['Notas coladas', r => r.notas_coladas.length ? r.notas_coladas.join(', ') : '—']
+  ];
+  rows.forEach(([n, f]) => { h += `<tr><td>${esc(n)}</td>` + cols.map(r => `<td class="num">${esc(f(r))}</td>`).join('') + `</tr>`; });
+  h += `</tbody></table></div>`;
+  return h;
+}
+
+function drawCharts() {
+  const byId = {}; specs().forEach(c => byId[c.id] = c);
+  document.querySelectorAll('.chart').forEach(el => {
+    const cfg = byId[el.getAttribute('data-id')];
+    el.innerHTML = svgChart(cfg, el.clientWidth || 320);
+  });
+}
+function start() {
+  document.getElementById('app').innerHTML = html();
+  drawCharts();
+  let last = 0;
+  const redo = () => { const w = document.getElementById('app').clientWidth; if (w !== last) { last = w; drawCharts(); } };
+  last = document.getElementById('app').clientWidth;
+  window.addEventListener('resize', redo);
+}
+if (typeof document !== 'undefined') start();
+else module.exports = { specs, layout, svgChart, niceScale, kpiData, custoMapa, html, ehExploracao, D, run, nf };
+</script>
+</body>
+</html>

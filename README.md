@@ -122,6 +122,19 @@ A cada tarefa nova o agente procurava no projeto (`ls`, `grep`, abrir 15 arquivo
 
 **Outra máquina.** O `.claude/` costuma ficar fora do git. Para levar o mapa, versione `.claude/contexto-projeto.md` e `.claude/mapa/`; o `.gitignore` gerado já deixa de fora o que é gerado.
 
+**Quanto economiza.** Medimos as mesmas 3 tarefas num projeto real (React + Node/SQLite, ~860 arquivos), com o mesmo Codex e o mesmo nível, com o gerenciador (briefing, mapa e pedido apontado) e sem ele (só o texto da tarefa):
+
+| Soma das 3 tarefas | Com | Sem | Diferença |
+| --- | --- | --- | --- |
+| Tempo | 131 s | 272 s | −52% |
+| Tokens de entrada | 611 mil | 2,05 milhões | −70% |
+| Tokens de entrada sem cache | 70 mil | 131 mil | −46% |
+| Tokens de saída | 7,1 mil | 15,6 mil | −54% |
+| Comandos executados | 29 | 65 | −55% |
+| Texto lido para o contexto | 79 KB | 401 KB | −80% |
+
+As 6 soluções passaram nos testes. Numa tarefa, a versão sem gerenciador foi mais completa: atualizou também o texto da tela e o doc que repetiam o valor alterado. Daí a regra de as notas listarem o que muda junto. Foi uma execução por tarefa, então trate os números como ordem de grandeza. O relatório completo, com gráficos, metodologia e limites, está em [`docs/benchmark-mapa-do-codigo.html`](docs/benchmark-mapa-do-codigo.html): baixe e abra no navegador.
+
 ## Como configurar
 
 Os níveis são `low`, `medium`, `high`, `xhigh` e `max`.
