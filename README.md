@@ -139,6 +139,10 @@ Os scripts ficam em `~/.gerenciador/agentes/scripts`. O gerente os usa sozinho, 
 
 Se o projeto tiver o arquivo `.claude/contexto-projeto.md` (stack, pastas, como rodar os testes), ele entra no pedido de toda tarefa nova e poupa tempo dos agentes.
 
+### Mapa do código
+
+As notas de módulos ficam em `<projeto>/.claude/mapa/modulos/`; `mapa.sh <projeto> gerar` cria o índice e os símbolos em `auto/`. O hook de sessão e a abertura de tarefas regeneram o mapa se o HEAD mudou. Use `mapa.sh <projeto> estado` para ver notas desatualizadas e `mapa.sh <projeto> conferida <modulo>` depois de revisá-las. Ao abrir uma tarefa, as notas dos caminhos `--reservar` entram no pedido; `--nota <modulo>` acrescenta contexto de leitura.
+
 </details>
 
 <details>

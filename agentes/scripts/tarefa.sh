@@ -9,6 +9,7 @@
 # Opções:
 #   --reservar <caminho>  arquivo, pasta ou padrão que só esta tarefa pode mexer (repetível).
 #                         Se outra tarefa ativa já reservou, a tarefa não é aberta.
+#   --nota <modulo>       inclui uma nota extra do mapa do código no pedido (repetível)
 #   --depois <tarefa>     só começa quando essa tarefa terminar, e parte do resultado dela (repetível)
 #   --base <ref>          ponto de partida da branch (padrão: HEAD do projeto)
 #   --forcar              abre mesmo com conflito de reserva
@@ -132,13 +133,14 @@ esac
 nome_valido "$nome"
 
 base="HEAD"; tarefa=""; forcar=0; modelo_pedido=""; raciocinio=""; continuar=0
-reservas=(); depois=()
+reservas=(); depois=(); notas_pedidas=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --base) base="$2"; shift 2 ;;
     --modelo) [ $# -ge 2 ] || erro "--modelo precisa de um nome"; modelo_pedido="$2"; shift 2 ;;
     --raciocinio) [ $# -ge 2 ] || erro "--raciocinio precisa de um nível"; raciocinio="$2"; shift 2 ;;
     --reservar) reservas+=("$2"); shift 2 ;;
+    --nota) notas_pedidas+=("$2"); shift 2 ;;
     --depois) depois+=("$2"); shift 2 ;;
     --forcar) forcar=1; shift ;;
     --continuar) continuar=1; shift ;;
@@ -224,10 +226,19 @@ for f in "${candidatos[@]}"; do
   [ -f "$f" ] && { briefing="$(head -c 8000 "$f")"; break; }
 done
 
+mapa_args=()
+[ "$continuar" = 1 ] && mapa_args+=(--continuar)
+for r in ${reservas[@]+"${reservas[@]}"}; do mapa_args+=(--reservar "$r"); done
+for n in ${notas_pedidas[@]+"${notas_pedidas[@]}"}; do mapa_args+=(--nota "$n"); done
+mapa_pedido="$(python3 "$(dirname "$(readlink -f "$0")")/../lib/mapa.py" "$raiz" pedido "${mapa_args[@]}")"
+mapa_texto="$(jq -r .texto <<<"$mapa_pedido")"
+mapa_notas="$(jq -c .notas <<<"$mapa_pedido")"
+
 prompt_arq="$estado/tarefas/$nome.prompt.md"
 if [ "$continuar" = 1 ]; then
   # A conversa anterior continua: as regras e o briefing já estão nela, só vai o que mudou.
   printf 'Continuação da tarefa anterior, na mesma pasta e com as mesmas regras.\n\nNovo pedido:\n%s\n' "$tarefa" >"$prompt_arq"
+  [ -z "$mapa_texto" ] || printf '\n%s\n' "$mapa_texto" >>"$prompt_arq"
 else
   cat >"$prompt_arq" <<EOF
 Você é o agente $agente, coordenado pelo Claude (gerente). Regras:
@@ -240,6 +251,8 @@ $regra_reserva
 ${briefing:+
 Contexto do projeto:
 $briefing
+}${mapa_texto:+
+$mapa_texto
 }
 Tarefa:
 $tarefa
@@ -255,8 +268,9 @@ if [ "$continuar" = 1 ]; then
     --arg modelo "$modelo_pedido" --arg raciocinio "$raciocinio" \
     --argjson reservas "$(json_array ${reservas[@]+"${reservas[@]}"})" \
     --argjson depois "$(json_array ${depois[@]+"${depois[@]}"})" \
+    --argjson notas "$mapa_notas" \
     'del(.inicio, .fim, .pid, .commit) | .status=$status | .criada=$criada | .prompt=$prompt | .titulo=$titulo
-     | .modelo=$modelo | .raciocinio=$raciocinio | .reservas=$reservas | .depois=$depois | .continuar=true' \
+     | .modelo=$modelo | .raciocinio=$raciocinio | .reservas=$reservas | .depois=$depois | .notas=$notas | .continuar=true' \
     "$reg" >"$reg.tmp" && mv "$reg.tmp" "$reg"
   echo "== $(agora) continuação" >>"$estado/logs/$nome.log"
 else
@@ -268,9 +282,10 @@ jq -n \
   --arg modelo "$modelo_pedido" --arg raciocinio "$raciocinio" \
   --argjson reservas "$(json_array ${reservas[@]+"${reservas[@]}"})" \
   --argjson depois "$(json_array ${depois[@]+"${depois[@]}"})" \
+  --argjson notas "$mapa_notas" \
   '{nome:$nome, agente:$agente, status:$status, branch:$branch, worktree:$worktree, base:$base,
     criada:$criada, log:$log, resumo:$resumo, prompt:$prompt, titulo:$titulo,
-    modelo:$modelo, raciocinio:$raciocinio, reservas:$reservas, depois:$depois}' >"$reg"
+    modelo:$modelo, raciocinio:$raciocinio, reservas:$reservas, depois:$depois, notas:$notas}' >"$reg"
 : >"$estado/logs/$nome.log"
 fi
 

@@ -66,6 +66,77 @@ echo base >"$proj/src/a.txt"
 git -C "$proj" add -A
 git -C "$proj" commit -qm inicial
 
+echo "mapa do código"
+mp="$tmp/mapa-proj"
+git init -q "$mp"
+git -C "$mp" config user.email teste@exemplo.com
+git -C "$mp" config user.name teste
+mkdir -p "$mp/src" "$mp/.claude/mapa/modulos"
+cat >"$mp/src/a.js" <<'EOF'
+import { base } from './b'
+export function dobro() { return base * 2 }
+EOF
+echo 'export const base = 3' >"$mp/src/b.js"
+echo "import { dobro } from './a'" >"$mp/src/c.jsx"
+echo 'export const solto = 1' >"$mp/src/solto.js"
+git -C "$mp" add src
+git -C "$mp" commit -qm inicial
+mp_head="$(git -C "$mp" rev-parse --short HEAD)"
+cat >"$mp/.claude/mapa/modulos/nucleo.md" <<EOF
+---
+modulo: nucleo
+resumo: Núcleo de cálculo
+arquivos:
+  - src/a.js
+  - src/b.js
+atualizado: $mp_head
+---
+# Núcleo
+CORPO-DA-NOTA
+EOF
+checa "gera mapa" "$S/mapa.sh" "$mp" gerar
+checa "índice lista módulo" grep -q '\[\[nucleo\]\] — Núcleo de cálculo' "$mp/.claude/mapa/indice.md"
+checa "símbolo exportado tem linha" grep -q 'L2: `dobro`' "$mp/.claude/mapa/auto/simbolos-nucleo.md"
+checa "import relativo é resolvido" grep -q 'Imports locais: `src/b.js`' "$mp/.claude/mapa/auto/simbolos-nucleo.md"
+checa "import reverso aparece" grep -q 'Usado por: `src/c.jsx`' "$mp/.claude/mapa/auto/simbolos-nucleo.md"
+checa "arquivo sem nota aparece" grep -q 'src/solto.js' "$mp/.claude/mapa/auto/simbolos-sem-modulo.md"
+checa "notas por arquivo" test "$("$S/mapa.sh" "$mp" notas src/a.js)" = nucleo
+checa "notas por pasta" test "$("$S/mapa.sh" "$mp" notas src)" = nucleo
+checa "notas por padrão" test "$("$S/mapa.sh" "$mp" notas 'src/*.js')" = nucleo
+echo '// revisado' >>"$mp/src/a.js"
+git -C "$mp" add src/a.js
+git -C "$mp" commit -qm mudou
+checa "estado mostra nota desatualizada" grep -q 'nucleo: desatualizada.*src/a.js' <<<"$("$S/mapa.sh" "$mp" estado)"
+checa "avisar mostra uma linha" test "$("$S/mapa.sh" avisar "$mp")" = 'mapa do código: 1 nota desatualizada (nucleo); detalhes: mapa.sh <projeto> estado'
+checa "avisar regenera ao mudar HEAD" test "$(cat "$mp/.claude/mapa/.estado")" = "$(git -C "$mp" rev-parse HEAD)"
+checa "conferida atualiza nota" "$S/mapa.sh" "$mp" conferida nucleo
+nega "conferida limpa desatualização" grep -q desatualizada <<<"$("$S/mapa.sh" "$mp" estado)"
+"$S/tarefa.sh" codex "$mp" mapa-pedido --reservar src/a.js --nota inexistente 'CRIAR saida.txt' >"$tmp/mapa-tarefa.out" 2>"$tmp/mapa-tarefa.err"
+espera_mapa() { "$S/esperar.sh" "$mp" mapa-pedido 60 >/dev/null 2>&1; }
+espera_mapa
+mp_reg="$mp/.git/agentes/tarefas/mapa-pedido.json"
+checa "reserva inclui corpo da nota" grep -q CORPO-DA-NOTA "$(jq -r .prompt "$mp_reg")"
+checa "nota inexistente avisa" grep -q "nota 'inexistente' não existe" "$tmp/mapa-tarefa.err"
+checa "registro guarda notas" test "$(jq -r '.notas | join(",")' "$mp_reg")" = nucleo
+"$S/tarefa.sh" codex "$mp" mapa-pedido --continuar --nota nucleo 'CRIAR saida2.txt' >/dev/null
+espera_mapa
+checa "continuar inclui nota explícita" grep -q CORPO-DA-NOTA "$(jq -r .prompt "$mp_reg")"
+"$S/tarefa.sh" codex "$mp" mapa-pedido --continuar 'CRIAR saida3.txt' >/dev/null
+espera_mapa
+nega "continuar não repete nota da reserva" grep -q CORPO-DA-NOTA "$(jq -r .prompt "$mp_reg")"
+sem_mapa="$tmp/sem-mapa"
+git init -q "$sem_mapa"
+git -C "$sem_mapa" config user.email teste@exemplo.com
+git -C "$sem_mapa" config user.name teste
+echo base >"$sem_mapa/base.txt"
+git -C "$sem_mapa" add .
+git -C "$sem_mapa" commit -qm inicial
+checa "avisar sem vault é silencioso" test -z "$("$S/mapa.sh" avisar "$sem_mapa")"
+"$S/tarefa.sh" codex "$sem_mapa" sem-nota --nota inexistente 'CRIAR saida.txt' >/dev/null 2>"$tmp/sem-nota.err"
+"$S/esperar.sh" "$sem_mapa" sem-nota 60 >/dev/null 2>&1
+nega "pedido sem vault não tem seção do mapa" grep -q 'Mapa do código' "$(jq -r .prompt "$sem_mapa/.git/agentes/tarefas/sem-nota.json")"
+checa "nota inexistente sem vault avisa" grep -q "nota 'inexistente' não existe" "$tmp/sem-nota.err"
+
 echo "tarefas em paralelo"
 "$S/tarefa.sh" codex "$proj" pesado --reservar src/back "CRIAR src/back/api.txt
 DORMIR 1" >/dev/null
@@ -236,7 +307,7 @@ echo '{"permissions":{"allow":["Bash(ls)"]}}' >"$proj/.claude/settings.json"
 "$aqui/instalar.sh" "$proj" >/dev/null && "$aqui/instalar.sh" "$proj" >/dev/null
 cfg="$proj/.claude/settings.json"
 checa "mantém o que já existia" test "$(jq -r '.permissions.allow[0]' "$cfg")" = "Bash(ls)"
-checa "não duplica hooks" test "$(jq '[.hooks[][]] | length' "$cfg")" = 5
+checa "não duplica hooks" test "$(jq '[.hooks[][]] | length' "$cfg")" = 6
 checa "instala os comandos de barra" test -f "$proj/.claude/commands/atualizar-agentes.md" -a -f "$proj/.claude/commands/codex.md"
 checa "guarda só em edições" test "$(jq -r '.hooks.PreToolUse[0].matcher' "$cfg")" = "Edit|Write|MultiEdit|NotebookEdit"
 checa "importa as regras uma vez" test "$(grep -c gerente-agentes "$proj/CLAUDE.md")" = 1

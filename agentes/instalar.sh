@@ -52,7 +52,8 @@ cfg="$raiz/.claude/settings.json"
 [ -f "$cfg" ] || echo '{}' >"$cfg"
 tmp="$(mktemp)"
 jq --arg sl "$aqui/hooks/statusline.sh" --arg aviso "$aqui/hooks/aviso-token.sh" \
-   --arg guarda "$aqui/hooks/guarda-arquivos.sh" --arg atualiza "$aqui/scripts/atualizar-agentes.sh avisar" '
+   --arg guarda "$aqui/hooks/guarda-arquivos.sh" --arg atualiza "$aqui/scripts/atualizar-agentes.sh avisar" \
+   --arg mapa "$aqui/scripts/mapa.sh avisar" '
   # Tira a versão antiga do hook (se houver) e põe a atual, para poder rodar de novo.
   def com_hook(ev; cmd; matcher):
     .hooks[ev] = ((.hooks[ev] // []) | map(select(([.hooks[]?.command] | index(cmd)) | not))
@@ -63,6 +64,7 @@ jq --arg sl "$aqui/hooks/statusline.sh" --arg aviso "$aqui/hooks/aviso-token.sh"
   | com_hook("PreToolUse"; $guarda; "Edit|Write|MultiEdit|NotebookEdit")
   | com_hook("SessionEnd"; $guarda; null)
   | com_hook("SessionStart"; $atualiza; null)
+  | com_hook("SessionStart"; $mapa; null)
 ' "$cfg" >"$tmp" && mv "$tmp" "$cfg"
 
 linha="@.claude/gerente-agentes.md"
@@ -77,6 +79,6 @@ echo "instalado em $raiz"
 echo "  subagentes: .claude/agents/codex.md e gemini.md"
 echo "  regras:     .claude/gerente-agentes.md (importado no CLAUDE.md)"
 echo "  comandos:   /codex, /codex-<modelo> e /atualizar-agentes em .claude/commands/
-  hooks:      linha de status, aviso de token, guarda de arquivos e aviso de atualização em .claude/settings.json"
+  hooks:      linha de status, aviso de token, guarda de arquivos, aviso de atualização e mapa do código em .claude/settings.json"
 echo "  atalho:     gerenciador [projeto]  (Claude + painel lado a lado; precisa de ~/.local/bin no PATH e do tmux)"
 echo "Abra uma sessão nova do Claude Code no projeto para valer."
