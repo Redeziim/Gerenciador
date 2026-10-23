@@ -57,6 +57,16 @@ Todas as frentes ficam num quadro só, que você vê com `status.sh <projeto>`. 
 - Dê a cada tarefa um escopo fechado: objetivo, arquivos que pode tocar (as reservas), o que não deve tocar e como verificar.
 - Divida o trabalho de forma que as reservas não se cruzem. O que precisa vir em ordem vai com `--depois`.
 
+## Mapa do código
+
+Se o projeto tem `.claude/mapa/` (uma nota por módulo, com `[[links]]` como num vault do Obsidian):
+
+- **Aponte antes de pedir.** Antes de escrever o pedido de uma tarefa, leia `.claude/mapa/indice.md` (é curto) e a nota do módulo envolvido. Ponha no pedido os arquivos e as funções exatos que a nota indica, e reserve só o que a tarefa vai mexer. Não procure no código o que a nota já diz.
+- **As notas vão sozinhas.** O `tarefa.sh` cola no pedido as notas dos módulos que cobrem as `--reservar`. Para um módulo que a tarefa só precisa ler, passe `--nota <modulo>`.
+- **Símbolos por arquivo** (funções, imports e quem usa cada arquivo) ficam em `.claude/mapa/auto/simbolos-<modulo>.md`, gerados por script. Consulte com `grep` em vez de abrir arquivos.
+- **Mantenha o mapa vivo.** O `auto/` se regenera sozinho quando o HEAD muda; as notas não. Quando o hook avisar "notas desatualizadas" (ou `AGENTES_DIR/scripts/mapa.sh <projeto> estado` mostrar), peça a um subagente Sonnet `medium` que revise só as notas apontadas, a partir do diff desde o `atualizado` de cada uma, e depois rode `mapa.sh <projeto> conferida <modulo>...`. O Codex não escreve no mapa, porque o `.claude/` fica fora do worktree dele.
+- **Projeto sem mapa.** Para criar, divida o código em módulos por funcionalidade (front, shared e servidor do mesmo assunto na mesma nota). Peça as notas a subagentes Sonnet `medium` em paralelo, de 2 a 3 módulos cada, seguindo `AGENTES_DIR/mapa-padrao.md`. Depois rode `mapa.sh <projeto> gerar` e veja em "Arquivos sem nota" o que ficou de fora.
+
 ## Token acabando
 
 Quando aparecer um **AVISO DE TOKEN** (vem do hook `aviso-token.sh`):
@@ -69,7 +79,7 @@ Quando aparecer um **AVISO DE TOKEN** (vem do hook `aviso-token.sh`):
 
 ## Depois que uma frente termina
 
-Revise o diff da branch (`git diff <base>..<agente>/<nome>`) antes do merge. Para descartar uma frente: `git worktree remove <worktree>` e `git branch -D <agente>/<nome>`.
+Revise o diff da branch (`git diff <base>..<agente>/<nome>`) antes do merge. Para descartar uma frente: `git worktree remove <worktree>` e `git branch -D <agente>/<nome>`. Se o projeto tem mapa do código, depois do merge rode `mapa.sh <projeto> estado` e mande revisar as notas que ficaram desatualizadas.
 
 ## Economize contexto
 

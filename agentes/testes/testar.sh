@@ -136,6 +136,13 @@ checa "avisar sem vault é silencioso" test -z "$("$S/mapa.sh" avisar "$sem_mapa
 "$S/esperar.sh" "$sem_mapa" sem-nota 60 >/dev/null 2>&1
 nega "pedido sem vault não tem seção do mapa" grep -q 'Mapa do código' "$(jq -r .prompt "$sem_mapa/.git/agentes/tarefas/sem-nota.json")"
 checa "nota inexistente sem vault avisa" grep -q "nota 'inexistente' não existe" "$tmp/sem-nota.err"
+mkdir -p "$sem_mapa/.claude/mapa/modulos"
+printf '\377\376 nota quebrada\n' >"$sem_mapa/.claude/mapa/modulos/quebrada.md"
+"$S/tarefa.sh" codex "$sem_mapa" mapa-quebrado 'CRIAR saida.txt' >/dev/null 2>"$tmp/mapa-quebrado.err"
+checa "mapa quebrado não impede a tarefa" test $? -eq 0
+"$S/esperar.sh" "$sem_mapa" mapa-quebrado 60 >/dev/null 2>&1
+checa "mapa quebrado avisa" grep -q 'mapa do código indisponível' "$tmp/mapa-quebrado.err"
+checa "mapa quebrado registra notas vazias" test "$(jq -c .notas "$sem_mapa/.git/agentes/tarefas/mapa-quebrado.json")" = '[]'
 
 echo "tarefas em paralelo"
 "$S/tarefa.sh" codex "$proj" pesado --reservar src/back "CRIAR src/back/api.txt

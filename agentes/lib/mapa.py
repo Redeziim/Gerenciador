@@ -289,7 +289,7 @@ def pedido(root, args):
     for n in ordered:
         path = n['file']
         body = n['body']
-        out.append(f'### {n["name"]} — {n["summary"]}\n')
+        out.append(f'\n### {n["name"]} — {n["summary"]}\n')
         delta = changed(root, n)
         if delta:
             out.append('(desatualizada: estes arquivos mudaram depois da nota: ' + ', '.join(delta) + ' — confira antes de confiar)\n')
@@ -299,9 +299,9 @@ def pedido(root, args):
             size += body_bytes
         else:
             out.append(f'{path} — leia se precisar\n')
-        out.append(f'Índice de todos os módulos: {vault(root) / "indice.md"}\n')
-        out.append(f'Símbolos por arquivo: {vault(root) / "auto" / ("simbolos-" + n["name"] + ".md")}\n')
-    print(json.dumps({'texto': '\n'.join(out), 'notas': [n['name'] for n in ordered]}, ensure_ascii=False))
+    out.append(f'\nÍndice de todos os módulos: {vault(root) / "indice.md"}\n')
+    out.append(f'Símbolos por arquivo: {vault(root) / "auto"}/simbolos-<modulo>.md\n')
+    print(json.dumps({'texto': ''.join(out), 'notas': [n['name'] for n in ordered]}, ensure_ascii=False))
 
 
 def main():

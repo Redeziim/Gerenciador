@@ -230,9 +230,15 @@ mapa_args=()
 [ "$continuar" = 1 ] && mapa_args+=(--continuar)
 for r in ${reservas[@]+"${reservas[@]}"}; do mapa_args+=(--reservar "$r"); done
 for n in ${notas_pedidas[@]+"${notas_pedidas[@]}"}; do mapa_args+=(--nota "$n"); done
-mapa_pedido="$(python3 "$(dirname "$(readlink -f "$0")")/../lib/mapa.py" "$raiz" pedido "${mapa_args[@]}")"
-mapa_texto="$(jq -r .texto <<<"$mapa_pedido")"
-mapa_notas="$(jq -c .notas <<<"$mapa_pedido")"
+# O mapa é opcional: se o mapa.py falhar, a tarefa sai sem as notas em vez de parar com o worktree já criado.
+mapa_texto=""; mapa_notas="[]"
+if mapa_pedido="$(python3 "$(dirname "$(readlink -f "$0")")/../lib/mapa.py" "$raiz" pedido ${mapa_args[@]+"${mapa_args[@]}"})" \
+   && jq -e 'has("texto") and has("notas")' >/dev/null 2>&1 <<<"$mapa_pedido"; then
+  mapa_texto="$(jq -r .texto <<<"$mapa_pedido")"
+  mapa_notas="$(jq -c .notas <<<"$mapa_pedido")"
+else
+  aviso "mapa do código indisponível; a tarefa segue sem as notas"
+fi
 
 prompt_arq="$estado/tarefas/$nome.prompt.md"
 if [ "$continuar" = 1 ]; then
