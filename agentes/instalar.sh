@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Liga o gerenciador de agentes a um projeto:
 #   - copia os subagentes codex e gemini para <projeto>/.claude/agents/ e os comandos de barra
-#     (/codex, /codex-<modelo>, /atualizar-agentes) para <projeto>/.claude/commands/
-#   - adiciona a linha de status, o aviso de token e a guarda de arquivos reservados
-#     em <projeto>/.claude/settings.json
+#     (/gerente, /codex, /codex-<modelo>, /painel, /mapa, /atualizar-agentes) para <projeto>/.claude/commands/
+#   - adiciona a linha de status, o aviso de token, a guarda de arquivos reservados e os avisos
+#     de atualização e do mapa do código em <projeto>/.claude/settings.json
 #   - importa as regras do gerente no <projeto>/CLAUDE.md
 # Pode rodar de novo sem duplicar nada.
 #
@@ -78,7 +78,7 @@ ln -sf "$aqui/scripts/iniciar.sh" "$HOME/.local/bin/gerenciador"
 echo "instalado em $raiz"
 echo "  subagentes: .claude/agents/codex.md e gemini.md"
 echo "  regras:     .claude/gerente-agentes.md (importado no CLAUDE.md)"
-echo "  comandos:   /codex, /codex-<modelo> e /atualizar-agentes em .claude/commands/
+echo "  comandos:   /gerente, /codex, /codex-<modelo>, /painel, /mapa e /atualizar-agentes em .claude/commands/
   hooks:      linha de status, aviso de token, guarda de arquivos, aviso de atualização e mapa do código em .claude/settings.json"
 echo "  atalho:     gerenciador [projeto]  (Claude + painel lado a lado; precisa de ~/.local/bin no PATH e do tmux)"
 echo "Abra uma sessão nova do Claude Code no projeto para valer."

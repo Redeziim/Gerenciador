@@ -104,6 +104,10 @@ checa "import reverso aparece" grep -q 'Usado por: `src/c.jsx`' "$mp/.claude/map
 checa "arquivo sem nota aparece" grep -q 'src/solto.js' "$mp/.claude/mapa/auto/simbolos-sem-modulo.md"
 checa "índice lista arquivo sem nota" grep -q '^- `src/solto.js`$' "$mp/.claude/mapa/indice.md"
 checa "índice agrupa pasta grande" grep -q '^- `testes/` — 6 arquivos$' "$mp/.claude/mapa/indice.md"
+checa "gitignore deixa o gerado fora" test "$(git -C "$mp" check-ignore .claude/mapa/indice.md .claude/mapa/auto/simbolos-nucleo.md .claude/mapa/.estado | wc -l)" -eq 3
+nega "gitignore não ignora as notas" git -C "$mp" check-ignore -q .claude/mapa/modulos/nucleo.md
+checa "mapa.sh sem comando mostra o estado" grep -q 'Arquivos de código sem nota' <<<"$("$S/mapa.sh" "$mp")"
+checa "comando /mapa instalado" test -f "$aqui/claude-commands/mapa.md"
 checa "notas por arquivo" test "$("$S/mapa.sh" "$mp" notas src/a.js)" = nucleo
 checa "notas por pasta" test "$("$S/mapa.sh" "$mp" notas src)" = nucleo
 checa "notas por padrão" test "$("$S/mapa.sh" "$mp" notas 'src/*.js')" = nucleo
@@ -136,6 +140,7 @@ echo base >"$sem_mapa/base.txt"
 git -C "$sem_mapa" add .
 git -C "$sem_mapa" commit -qm inicial
 checa "avisar sem vault é silencioso" test -z "$("$S/mapa.sh" avisar "$sem_mapa")"
+checa "estado sem vault diz que não há mapa" grep -q '^Sem mapa' <<<"$("$S/mapa.sh" "$sem_mapa")"
 "$S/tarefa.sh" codex "$sem_mapa" sem-nota --nota inexistente 'CRIAR saida.txt' >/dev/null 2>"$tmp/sem-nota.err"
 "$S/esperar.sh" "$sem_mapa" sem-nota 60 >/dev/null 2>&1
 nega "pedido sem vault não tem seção do mapa" grep -q 'Mapa do código' "$(jq -r .prompt "$sem_mapa/.git/agentes/tarefas/sem-nota.json")"

@@ -53,6 +53,7 @@ Para sair, digite `/exit` (fecha tudo). Para deixar a sessão rodando em segundo
 | **Quadro de reservas** | Cada tarefa declara os arquivos que vai tocar; duas tarefas ativas nunca reservam o mesmo. |
 | **Níveis por tarefa** | `medium`, `high` ou `xhigh`, escolhido pelo gerente conforme a dificuldade. |
 | **Passagem ao Codex** | Se o token do gerente está acabando, a tarefa vai sozinha para o Codex, que continua de onde parou. |
+| **Mapa do código** | Notas por módulo que levam o agente direto ao arquivo e à função, sem gastar token procurando. |
 | **Comando `/painel`** | Abre o painel ao lado do Claude (ou fecha e abre de novo, se já estava aberto). |
 
 Símbolos do painel: `✶` rodando, `◌` aguardando, `✓` concluída, `✗` falhou ou bloqueada, `⊘` cancelada. Ele também avisa `⚠ fora da reserva` (o agente mexeu num arquivo que não reservou) e `⚠ conflito` (dois agentes no mesmo arquivo).
@@ -97,6 +98,28 @@ Símbolos do painel: `✶` rodando, `◌` aguardando, `✓` concluída, `✗` fa
 
 **Se o token estiver acabando.** *Token* é a unidade de consumo da IA. Quando o contexto passa de 85% ou a cota passa de 90%, o gerente recebe um AVISO DE TOKEN: para de começar trabalho novo, escreve notas do que foi feito e do que falta e passa a tarefa ao Codex (`passar-para-codex.sh`). O Codex continua numa branch própria, a partir do estado atual, inclusive do que ainda não tinha sido salvo. O gerente avisa você com qual nome a tarefa foi passada.
 
+## Mapa do código
+
+<p align="center">
+  <img src="docs/mapa.svg" alt="Mapa do código: o gerente lê o índice e a nota do módulo, o tarefa.sh cola as notas dos módulos reservados no pedido, e o agente vai direto ao arquivo e à função." width="900">
+</p>
+
+A cada tarefa nova o agente procurava no projeto (`ls`, `grep`, abrir 15 arquivos) para achar onde mexer, e isso gasta tokens. O mapa resolve: é um conjunto de notas no estilo de um vault do Obsidian, em `<projeto>/.claude/mapa/`, com uma nota por funcionalidade (`modulos/<modulo>.md`: arquivos, como funciona, onde mexer, armadilhas e testes). O `indice.md` (uma linha por nota) e o `auto/simbolos-<modulo>.md` (funções e classes com a linha, imports e quem usa cada arquivo) são gerados por script, sem gastar token.
+
+**Como entra no trabalho**
+
+1. O gerente lê o `indice.md` e a nota do módulo e põe no pedido os arquivos e as funções exatos.
+2. O `tarefa.sh` cola no pedido as notas dos módulos que cobrem as `--reservar`. `--nota <modulo>` acrescenta um módulo que a tarefa só lê. O limite é 12000 bytes de notas; acima disso, a nota vai só como caminho.
+3. O agente vai direto ao arquivo certo, sem procurar.
+
+**Como se mantém.** Um hook de início de sessão regenera o `auto/` e o índice quando o HEAD mudou e avisa quando há notas desatualizadas (algum arquivo coberto mudou depois do commit em `atualizado`). O gerente pede a um Sonnet que revise só essas notas e roda `mapa.sh <projeto> conferida <modulo>`.
+
+**Como criar.** Peça ao gerente: "crie o mapa do código deste projeto". Ele divide o código em módulos, dispara subagentes Sonnet em paralelo (2 a 3 módulos cada), roda `mapa.sh <projeto> gerar` e confere em "Arquivos sem nota" o que ficou de fora.
+
+**Obsidian.** Abra `.claude/mapa/` como vault para ver o grafo dos módulos.
+
+**Outra máquina.** O `.claude/` costuma ficar fora do git. Para levar o mapa, versione `.claude/contexto-projeto.md` e `.claude/mapa/`; o `.gitignore` gerado já deixa de fora o que é gerado.
+
 ## Como configurar
 
 Os níveis são `low`, `medium`, `high`, `xhigh` e `max`.
@@ -114,6 +137,9 @@ Os níveis são `low`, `medium`, `high`, `xhigh` e `max`.
 | Que o gerente escolha o nível por tarefa | `/gerente codex auto` e `/gerente claude auto` |
 | Ver o modelo e o raciocínio do Codex | `/codex` (e `/codex listar` mostra os modelos) |
 | Trocar o modelo do Codex | `/codex gpt-6.1-sol medium` ou `/codex-<modelo>` (por exemplo `/codex-gpt-6.1-sol`) |
+| Ver o estado do mapa do código | `/mapa` |
+| Regenerar o índice e os símbolos do mapa | `/mapa gerar` |
+| Criar o mapa num projeto | Peça ao gerente: "crie o mapa do código deste projeto" |
 | Usar o Gemini | Cite-o no pedido: "use o Gemini para revisar os textos" |
 | Um nível só numa tarefa | Peça ao gerente: "use o Codex com xhigh nesta tarefa" |
 
@@ -129,19 +155,16 @@ Os scripts ficam em `~/.gerenciador/agentes/scripts`. O gerente os usa sozinho, 
 | `status.sh <projeto>` | Mostra o quadro: tarefas, reservas e dependências. |
 | `painel.sh <projeto>` | Painel ao vivo no terminal. Com `--log <nome>`, mostra o log de uma tarefa. |
 | `esperar.sh <projeto> <nome>` | Espera uma tarefa terminar e mostra o resultado. |
-| `tarefa.sh <codex\|gemini> <projeto> <nome> --reservar <caminho> "<tarefa>"` | Dispara uma tarefa. `--continuar` segue uma tarefa já terminada, sem reler o projeto. |
+| `tarefa.sh <codex\|gemini> <projeto> <nome> --reservar <caminho> "<tarefa>"` | Dispara uma tarefa. `--continuar` segue uma tarefa já terminada, sem reler o projeto. `--nota <modulo>` acrescenta uma nota do mapa. |
 | `quadro.sh cancelar <projeto> <nome>` | Cancela uma tarefa. |
 | `gerente-config.sh <projeto>` | Mostra o quadro de agentes e níveis. |
+| `mapa.sh <projeto> [estado\|gerar\|notas <caminho>...\|conferida <modulo>...]` | Mostra o estado do mapa do código, regenera o índice e os símbolos, diz quais notas cobrem os caminhos ou marca notas como revisadas no HEAD atual. |
 | `imagem.sh "<descrição>" <saida.png>` | Gera uma imagem com o Nano Banana (precisa de `GEMINI_API_KEY`). |
 | `atualizar-agentes.sh` | Confere (e instala) atualizações do Claude, do Codex e do Gemini. |
 
 `<projeto>` pode ser uma pasta, um apelido (`projetos.sh adicionar <apelido> <pasta>`) ou `.`.
 
 Se o projeto tiver o arquivo `.claude/contexto-projeto.md` (stack, pastas, como rodar os testes), ele entra no pedido de toda tarefa nova e poupa tempo dos agentes.
-
-### Mapa do código
-
-As notas de módulos ficam em `<projeto>/.claude/mapa/modulos/`; `mapa.sh <projeto> gerar` cria o índice e os símbolos em `auto/`. O hook de sessão e a abertura de tarefas regeneram o mapa se o HEAD mudou. Use `mapa.sh <projeto> estado` para ver notas desatualizadas e `mapa.sh <projeto> conferida <modulo>` depois de revisá-las. Ao abrir uma tarefa, as notas dos caminhos `--reservar` entram no pedido; `--nota <modulo>` acrescenta contexto de leitura.
 
 </details>
 
@@ -191,6 +214,8 @@ Se uma tarefa fica `falhou`, o motivo está no log: `painel.sh <projeto> --log <
 | `erro: defina GEMINI_API_KEY`, mas a chave está no `~/.bashrc` | Scripts em segundo plano não leem o `.bashrc`. Mova a chave para `~/.config/agentes/env` (`chmod 600`). |
 | `bad interpreter: /usr/bin/env: 'bash\r'` (Windows) | O Git do Windows trocou o fim das linhas. Clone de novo **dentro do Ubuntu**. Para consertar: `find ~/.gerenciador -name '*.sh' -exec sed -i 's/\r$//' {} +`. |
 | `codex`, `gemini` ou `claude` "não encontrado" no WSL | A CLI foi instalada só no Windows. Instale dentro do Ubuntu; `command -v codex` não pode começar com `/mnt/c`. |
+| Aviso "mapa do código: N notas desatualizadas (...)" | Algum arquivo coberto por essas notas mudou depois do commit em `atualizado`. Peça ao gerente para revisar só essas notas; ele roda `mapa.sh <projeto> conferida <modulo>` no fim. |
+| "mapa do código indisponível" ao abrir uma tarefa | Geralmente uma nota com frontmatter ou codificação quebrados. A tarefa abre sem as notas; `mapa.sh <projeto> estado` mostra o erro. |
 | O painel não aparece | Rode `/painel`. O `gerenciador` precisa do `tmux` instalado. |
 
 Os problemas de Windows/WSL desta tabela não foram reproduzidos em testes; ela serve para reconhecer o sintoma.
@@ -227,8 +252,10 @@ Os problemas de Windows/WSL desta tabela não foram reproduzidos em testes; ela 
 | `agentes/hooks/` | Guarda de arquivos, aviso de token e linha de status. |
 | `agentes/GERENTE.md` | As regras do gerente, importadas no `CLAUDE.md` do projeto. |
 | `agentes/claude-agents/` | Os subagentes `codex` e `gemini`. |
-| `agentes/claude-commands/` | Os comandos `/gerente`, `/codex`, `/painel` e `/atualizar-agentes`. |
-| `agentes/instalar.sh` | Liga o gerenciador a um projeto (o `gerenciador` já roda isso sozinho). |
+| `agentes/claude-commands/` | Os comandos `/gerente`, `/codex`, `/painel`, `/mapa` e `/atualizar-agentes`. |
+| `agentes/lib/mapa.py` | Gera o índice e os símbolos do mapa do código (só biblioteca padrão do Python). |
+| `agentes/mapa-padrao.md` | O padrão das notas do mapa, seguido pelos subagentes que as escrevem. |
+| `agentes/instalar.sh` | Liga o gerenciador a um projeto e registra o hook do mapa (o `gerenciador` já roda isso sozinho). |
 
 O quadro de tarefas e os logs ficam em `<projeto>/.git/agentes/` (fora dos commits), e as cópias de trabalho em `<pasta-pai>/.agentes-<projeto>/<nome>`.
 

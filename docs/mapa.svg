@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 760" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <title>Mapa do código</title>
+  <defs>
+    <marker id="seta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#d97757"/>
+    </marker>
+    <marker id="setaf" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#a59e94"/>
+    </marker>
+  </defs>
+  <rect width="1600" height="760" rx="28" fill="#1f1d1b"/>
+  <rect x="1.5" y="1.5" width="1597" height="757" rx="27" fill="none" stroke="#3a3632" stroke-width="3"/>
+  <text x="60" y="64" font-size="34" font-weight="700" fill="#ece6de">Mapa do código</text>
+
+  <g stroke="#d97757" stroke-width="3.5" fill="none" marker-end="url(#seta)">
+    <line x1="502" y1="195" x2="578" y2="195"/>
+    <line x1="1022" y1="195" x2="1098" y2="195"/>
+  </g>
+
+  <rect x="60" y="100" width="440" height="190" rx="20" fill="#2a2724" stroke="#d97757" stroke-width="3"/>
+  <text x="90" y="158" font-size="30" font-weight="700" fill="#ece6de">Gerente lê o mapa</text>
+  <text x="90" y="206" font-size="23" fill="#a59e94">indice.md e a nota</text>
+  <text x="90" y="238" font-size="23" fill="#a59e94">do módulo envolvido</text>
+  <circle cx="60" cy="100" r="19" fill="#d97757"/><text x="60" y="108" text-anchor="middle" font-size="22" font-weight="800" fill="#1f1d1b">1</text>
+  <rect x="580" y="100" width="440" height="190" rx="20" fill="#2a2724" stroke="#d9b25f" stroke-width="3"/>
+  <text x="610" y="158" font-size="30" font-weight="700" fill="#ece6de">tarefa.sh cola as notas</text>
+  <text x="610" y="206" font-size="23" fill="#a59e94">dos módulos reservados</text>
+  <text x="610" y="238" font-size="23" fill="#a59e94">direto no pedido</text>
+  <circle cx="580" cy="100" r="19" fill="#d97757"/><text x="580" y="108" text-anchor="middle" font-size="22" font-weight="800" fill="#1f1d1b">2</text>
+  <rect x="1100" y="100" width="440" height="190" rx="20" fill="#2a2724" stroke="#7fbf8e" stroke-width="3"/>
+  <text x="1130" y="158" font-size="30" font-weight="700" fill="#ece6de">Agente vai direto</text>
+  <text x="1130" y="206" font-size="23" fill="#a59e94">ao arquivo e à função,</text>
+  <text x="1130" y="238" font-size="23" fill="#a59e94">sem procurar</text>
+  <circle cx="1100" cy="100" r="19" fill="#d97757"/><text x="1100" y="108" text-anchor="middle" font-size="22" font-weight="800" fill="#1f1d1b">3</text>
+
+  <rect x="60" y="330" width="1480" height="300" rx="20" fill="#2a2724" stroke="#3a3632" stroke-width="2"/>
+  <text x="90" y="372" font-size="22" fill="#a59e94" font-family="ui-monospace,Menlo,Consolas,monospace">.claude/mapa/</text>
+  <text x="1510" y="372" text-anchor="end" font-size="20" fill="#a59e94">como num vault do Obsidian</text>
+
+  <g stroke="#a59e94" stroke-width="2.5" fill="none">
+    <line x1="400" y1="480" x2="655" y2="415"/>
+    <line x1="400" y1="480" x2="655" y2="480"/>
+    <line x1="400" y1="480" x2="655" y2="545"/>
+  </g>
+  <line x1="800" y1="523" x2="800" y2="502" stroke="#a59e94" stroke-width="2" stroke-dasharray="4 6"/>
+  <line x1="945" y1="415" x2="1080" y2="415" stroke="#d97757" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#setaf)"/>
+
+  <rect x="200" y="458" width="200" height="44" rx="22" fill="#1f1d1b" stroke="#d97757" stroke-width="2.5"/>
+  <text x="300" y="488" text-anchor="middle" font-size="22" fill="#d97757" font-family="ui-monospace,Menlo,Consolas,monospace">indice.md</text>
+  <rect x="655" y="393" width="290" height="44" rx="22" fill="#1f1d1b" stroke="#d9b25f" stroke-width="2.5"/>
+  <text x="800" y="423" text-anchor="middle" font-size="22" fill="#d9b25f" font-family="ui-monospace,Menlo,Consolas,monospace">modulos/nucleo</text>
+  <rect x="655" y="458" width="290" height="44" rx="22" fill="#1f1d1b" stroke="#d9b25f" stroke-width="2.5"/>
+  <text x="800" y="488" text-anchor="middle" font-size="22" fill="#d9b25f" font-family="ui-monospace,Menlo,Consolas,monospace">modulos/mapa-2d</text>
+  <rect x="655" y="523" width="290" height="44" rx="22" fill="#1f1d1b" stroke="#d9b25f" stroke-width="2.5"/>
+  <text x="800" y="553" text-anchor="middle" font-size="22" fill="#d9b25f" font-family="ui-monospace,Menlo,Consolas,monospace">modulos/fichas</text>
+  <rect x="1080" y="393" width="420" height="44" rx="22" fill="#1f1d1b" stroke="#7fbf8e" stroke-width="2.5"/>
+  <text x="1290" y="423" text-anchor="middle" font-size="22" fill="#7fbf8e" font-family="ui-monospace,Menlo,Consolas,monospace">auto/simbolos-nucleo</text>
+  <text x="1290" y="470" text-anchor="middle" font-size="20" fill="#a59e94">funções e classes com a linha,</text>
+  <text x="1290" y="498" text-anchor="middle" font-size="20" fill="#a59e94">imports e quem usa o arquivo</text>
+  <text x="1290" y="560" text-anchor="middle" font-size="20" fill="#a59e94">gerados por script, sem gastar token</text>
+  <text x="300" y="530" text-anchor="middle" font-size="20" fill="#a59e94">uma linha por nota</text>
+  <text x="800" y="595" text-anchor="middle" font-size="20" fill="#a59e94">uma nota por funcionalidade, com [[links]]</text>
+
+  <rect x="60" y="660" width="1480" height="64" rx="32" fill="none" stroke="#3a3632" stroke-width="2" stroke-dasharray="10 8"/>
+  <text x="800" y="700" text-anchor="middle" font-size="23" fill="#a59e94">hook de sessão: regenera <tspan fill="#ece6de" font-family="ui-monospace,Menlo,Consolas,monospace">auto/</tspan> e avisa notas desatualizadas</text>
+</svg>

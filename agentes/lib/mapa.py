@@ -235,6 +235,8 @@ def generate(root, ns=None):
         if old.is_file() and old.name not in expected:
             old.unlink()
     (base / '.estado').write_text(head_full(root) + '\n', encoding='utf-8')
+    # As notas podem ir para o git do projeto; o que é gerado aqui, não.
+    (base / '.gitignore').write_text('# Gerado pelo mapa.sh\nauto/\nindice.md\n.estado\n', encoding='utf-8')
 
 
 def stale_auto(root):
@@ -320,6 +322,8 @@ def main():
         generate(root)
     elif cmd == 'estado':
         ns = notes(root)
+        if not ns:
+            print('Sem mapa: nenhuma nota em .claude/mapa/modulos/.')
         for n in ns:
             delta = changed(root, n)
             if delta:
