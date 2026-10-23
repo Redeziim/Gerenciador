@@ -232,7 +232,9 @@ for r in ${reservas[@]+"${reservas[@]}"}; do mapa_args+=(--reservar "$r"); done
 for n in ${notas_pedidas[@]+"${notas_pedidas[@]}"}; do mapa_args+=(--nota "$n"); done
 # O mapa é opcional: se o mapa.py falhar, a tarefa sai sem as notas em vez de parar com o worktree já criado.
 mapa_texto=""; mapa_notas="[]"
-if mapa_pedido="$(python3 "$(dirname "$(readlink -f "$0")")/../lib/mapa.py" "$raiz" pedido ${mapa_args[@]+"${mapa_args[@]}"})" \
+if ! command -v python3 >/dev/null 2>&1; then
+  [ ! -d "$raiz/.claude/mapa/modulos" ] || aviso "o mapa do código precisa do python3; a tarefa segue sem as notas"
+elif mapa_pedido="$(python3 "$(dirname "$(readlink -f "$0")")/../lib/mapa.py" "$raiz" pedido ${mapa_args[@]+"${mapa_args[@]}"})" \
    && jq -e 'has("texto") and has("notas")' >/dev/null 2>&1 <<<"$mapa_pedido"; then
   mapa_texto="$(jq -r .texto <<<"$mapa_pedido")"
   mapa_notas="$(jq -c .notas <<<"$mapa_pedido")"

@@ -118,6 +118,8 @@ A cada tarefa nova o agente procurava no projeto (`ls`, `grep`, abrir 15 arquivo
 
 **Obsidian.** Abra `.claude/mapa/` como vault para ver o grafo dos módulos.
 
+**Requisito.** O mapa usa o `python3`, só com a biblioteca padrão. Sem ele, o resto funciona e as tarefas saem sem as notas.
+
 **Outra máquina.** O `.claude/` costuma ficar fora do git. Para levar o mapa, versione `.claude/contexto-projeto.md` e `.claude/mapa/`; o `.gitignore` gerado já deixa de fora o que é gerado.
 
 ## Como configurar
