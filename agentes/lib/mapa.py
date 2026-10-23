@@ -207,7 +207,15 @@ def generate(root, ns=None):
     else:
         title += 'Não há notas de módulos.\n'
     title += f'\n## Arquivos sem nota\n\n{len(missing)} arquivos de código. [[simbolos-sem-modulo]]\n'
-    title += ''.join(f'- `{p}`\n' for p in missing[:30])
+    # Agrupado por pasta de topo: uma pasta de testes inteira vira uma linha, não 30 nomes.
+    groups = {}
+    for p in missing:
+        groups.setdefault(p.split('/', 1)[0] + '/' if '/' in p else '', []).append(p)
+    for folder, items in sorted(groups.items(), key=lambda g: (-len(g[1]), g[0])):
+        if len(items) > 5:
+            title += f'- `{folder}` — {len(items)} arquivos\n'
+        else:
+            title += ''.join(f'- `{p}`\n' for p in items)
     title += '\n`auto/simbolos-<modulo>.md` tem os símbolos por arquivo.\n'
     (base / 'indice.md').write_text(title, encoding='utf-8')
     info = {p: symbols_and_imports(root, p, files) for p in files}

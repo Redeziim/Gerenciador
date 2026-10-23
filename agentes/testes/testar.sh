@@ -79,7 +79,9 @@ EOF
 echo 'export const base = 3' >"$mp/src/b.js"
 echo "import { dobro } from './a'" >"$mp/src/c.jsx"
 echo 'export const solto = 1' >"$mp/src/solto.js"
-git -C "$mp" add src
+mkdir -p "$mp/testes"
+for i in 1 2 3 4 5 6; do echo "export const t$i = $i" >"$mp/testes/t$i.test.js"; done
+git -C "$mp" add src testes
 git -C "$mp" commit -qm inicial
 mp_head="$(git -C "$mp" rev-parse --short HEAD)"
 cat >"$mp/.claude/mapa/modulos/nucleo.md" <<EOF
@@ -100,6 +102,8 @@ checa "símbolo exportado tem linha" grep -q 'L2: `dobro`' "$mp/.claude/mapa/aut
 checa "import relativo é resolvido" grep -q 'Imports locais: `src/b.js`' "$mp/.claude/mapa/auto/simbolos-nucleo.md"
 checa "import reverso aparece" grep -q 'Usado por: `src/c.jsx`' "$mp/.claude/mapa/auto/simbolos-nucleo.md"
 checa "arquivo sem nota aparece" grep -q 'src/solto.js' "$mp/.claude/mapa/auto/simbolos-sem-modulo.md"
+checa "índice lista arquivo sem nota" grep -q '^- `src/solto.js`$' "$mp/.claude/mapa/indice.md"
+checa "índice agrupa pasta grande" grep -q '^- `testes/` — 6 arquivos$' "$mp/.claude/mapa/indice.md"
 checa "notas por arquivo" test "$("$S/mapa.sh" "$mp" notas src/a.js)" = nucleo
 checa "notas por pasta" test "$("$S/mapa.sh" "$mp" notas src)" = nucleo
 checa "notas por padrão" test "$("$S/mapa.sh" "$mp" notas 'src/*.js')" = nucleo
