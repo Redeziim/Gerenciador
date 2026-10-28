@@ -172,6 +172,7 @@ Os scripts ficam em `~/.gerenciador/agentes/scripts`. O gerente os usa sozinho, 
 | `esperar.sh <projeto> <nome>` | Espera uma tarefa terminar e mostra o resultado. |
 | `tarefa.sh <codex\|gemini> <projeto> <nome> --reservar <caminho> "<tarefa>"` | Dispara uma tarefa. `--continuar` segue uma tarefa já terminada, sem reler o projeto. `--nota <modulo>` acrescenta uma nota do mapa. |
 | `quadro.sh cancelar <projeto> <nome>` | Cancela uma tarefa. |
+| `decisoes.sh <projeto> [listar\|resultado\|registrar]` | Registro de decisões: nível escolhido por tarefa, motivo (`tarefa.sh --motivo`), escaladas e resultado da revisão. Sem argumento, mostra o resumo por agente e nível. |
 | `gerente-config.sh <projeto>` | Mostra o quadro de agentes e níveis. |
 | `mapa.sh <projeto> [estado\|gerar\|notas <caminho>...\|conferida <modulo>...]` | Mostra o estado do mapa do código, regenera o índice e os símbolos, diz quais notas cobrem os caminhos ou marca notas como revisadas no HEAD atual. |
 | `imagem.sh "<descrição>" <saida.png>` | Gera uma imagem com o Nano Banana (precisa de `GEMINI_API_KEY`). |

@@ -110,6 +110,21 @@ json_array() {
   if [ $# -eq 0 ]; then echo '[]'; else printf '%s\n' "$@" | jq -R . | jq -s -c .; fi
 }
 
+# Acrescenta um evento ao registro de decisões do projeto (<estado>/decisoes.jsonl, uma linha JSON por evento).
+# Uso: decisao_log <estado> <evento> <nome> [campo=valor]...   (valores vazios são omitidos)
+decisao_log() {
+  local estado="$1" evento="$2" nome="$3" par obj
+  shift 3
+  obj="$(jq -n -c --arg t "$(agora)" --arg e "$evento" --arg n "$nome" '{t:$t, evento:$e, nome:$n}')"
+  for par in "$@"; do
+    [ -n "${par#*=}" ] || continue
+    obj="$(jq -c --arg c "${par%%=*}" --arg v "${par#*=}" '.[$c] = $v' <<<"$obj")"
+  done
+  travar "$estado/decisoes"
+  printf '%s\n' "$obj" >>"$estado/decisoes.jsonl"
+  destravar "$estado/decisoes"
+}
+
 # Estados em que uma tarefa ainda segura as reservas dela.
 ativa() { case "$1" in rodando|aguardando) return 0 ;; *) return 1 ;; esac; }
 

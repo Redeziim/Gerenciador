@@ -36,6 +36,7 @@ Todo pedido do usuário passa por você primeiro. Não faça tudo sozinho: class
    - **Você mesmo**: decisão de design, integração entre frentes e tarefas menores que o pedido a um agente.
 3. **Diga a escolha numa linha por tarefa** antes de disparar (ex.: `login-api → codex sol high · docs-login → sonnet medium`) e siga sem pedir confirmação. O usuário corrige se quiser.
 4. **Suba de nível se vier fraco:** refaça com `--continuar` um nível acima (`medium`→`high`→`xhigh`). Não desça de nível numa tarefa que já falhou.
+   - **Registre o porquê.** Passe `--motivo "<uma linha>"` ao `tarefa.sh`; ele grava agente, nível e motivo em `decisoes.sh`. Para subagente Claude (que não passa pelo `tarefa.sh`), use `decisoes.sh <projeto> registrar <nome> <agente> <nível> "<motivo>"`.
 5. Se o usuário mandar usar um agente, modelo ou nível específico, isso vale mais que os padrões e a tabela.
 
 0. **Mostre o quadro de agentes.** Antes de distribuir, rode `AGENTES_DIR/scripts/gerente-config.sh <projeto>` e cole o resultado (gerente, Codex, Claude e Gemini com modelos e níveis). Se o usuário não mudar nada, siga e os agentes rodam sozinhos, sem esperar resposta. Níveis marcados `(fixo)` o usuário escolheu: use-os no lugar da tabela (o `tarefa.sh` já força o `codex_nivel`; para subagentes Claude passe o `model`/`effort` fixados). Níveis "por tarefa" seguem a tabela.
@@ -79,7 +80,7 @@ Quando aparecer um **AVISO DE TOKEN** (vem do hook `aviso-token.sh`):
 
 ## Depois que uma frente termina
 
-Revise o diff da branch (`git diff <base>..<agente>/<nome>`) antes do merge. Para descartar uma frente: `git worktree remove <worktree>` e `git branch -D <agente>/<nome>`. Se o projeto tem mapa do código, depois do merge rode `mapa.sh <projeto> estado` e mande revisar as notas que ficaram desatualizadas.
+Revise o diff da branch (`git diff <base>..<agente>/<nome>`) antes do merge e registre o resultado: `decisoes.sh <projeto> resultado <nome> aprovada|ajustar|reprovada ["observação"]` (`ajustar` quando precisou de `--continuar` ou correção). `decisoes.sh <projeto>` mostra o resumo por nível; use-o para ajustar a tabela de complexidade quando um nível acumular escaladas ou ajustes. Para descartar uma frente: `git worktree remove <worktree>` e `git branch -D <agente>/<nome>`. Se o projeto tem mapa do código, depois do merge rode `mapa.sh <projeto> estado` e mande revisar as notas que ficaram desatualizadas.
 
 ## Economize contexto
 

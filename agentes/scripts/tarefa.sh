@@ -15,6 +15,7 @@
 #   --forcar              abre mesmo com conflito de reserva
 #   --modelo <nome>       modelo do agente (Codex: codex.env, sol mais novo, padrão do Codex; Gemini: GEMINI_MODELO)
 #   --raciocinio <nível>  só Codex: low, medium, high ou xhigh (padrão: o do ~/.codex/config.toml)
+#   --motivo "<texto>"    por que este nível/modelo (vai para o registro de decisões, ver decisoes.sh)
 #   --continuar           segue uma tarefa já terminada com o mesmo nome: reaproveita o worktree, a branch
 #                         e a conversa do agente (ele não relê o projeto). A tarefa nova só diz o que mudar.
 #
@@ -37,7 +38,12 @@ if [ "${1:-}" = "--executar" ]; then
   registro_set "$reg" pid "$$"
   dir_tarefas="$(dirname "$reg")"
 
-  encerrar() { registro_set "$reg" fim "$(agora)"; registro_set "$reg" status "$1"; exit 0; }
+  encerrar() {
+    registro_set "$reg" fim "$(agora)"; registro_set "$reg" status "$1"
+    decisao_log "$(dirname "$dir_tarefas")" fim "$nome" status="$1" agente="$agente" commit="$(registro_get "$reg" commit)" \
+      inicio="$(registro_get "$reg" inicio)" 2>/dev/null || true
+    exit 0
+  }
 
   # Espera cada dependência terminar e traz o resultado dela para este worktree.
   deps=()
@@ -132,13 +138,14 @@ case "$agente" in
 esac
 nome_valido "$nome"
 
-base="HEAD"; tarefa=""; forcar=0; modelo_pedido=""; raciocinio=""; continuar=0
+base="HEAD"; tarefa=""; forcar=0; modelo_pedido=""; raciocinio=""; continuar=0; motivo=""
 reservas=(); depois=(); notas_pedidas=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --base) base="$2"; shift 2 ;;
     --modelo) [ $# -ge 2 ] || erro "--modelo precisa de um nome"; modelo_pedido="$2"; shift 2 ;;
     --raciocinio) [ $# -ge 2 ] || erro "--raciocinio precisa de um nível"; raciocinio="$2"; shift 2 ;;
+    --motivo) [ $# -ge 2 ] || erro "--motivo precisa de um texto"; motivo="$2"; shift 2 ;;
     --reservar) reservas+=("$2"); shift 2 ;;
     --nota) notas_pedidas+=("$2"); shift 2 ;;
     --depois) depois+=("$2"); shift 2 ;;
@@ -270,6 +277,9 @@ fi
 status_inicial=rodando
 [ ${#depois[@]} -gt 0 ] && status_inicial=aguardando
 
+nivel_anterior=""
+[ "$continuar" = 1 ] && nivel_anterior="$(registro_get "$reg" raciocinio)"
+
 if [ "$continuar" = 1 ]; then
   jq --arg status "$status_inicial" --arg criada "$(agora)" --arg prompt "$prompt_arq" \
     --arg titulo "$(printf '%s' "$tarefa" | head -n1 | cut -c1-120)" \
@@ -299,6 +309,10 @@ fi
 
 destravar "$estado/quadro"
 trap - EXIT
+
+# Registro de decisões: o que foi escolhido e por quê (o resultado entra quando a tarefa termina e na revisão).
+decisao_log "$estado" abertura "$nome" agente="$agente" modelo="$modelo_pedido" nivel="$raciocinio" motivo="$motivo" \
+  continuacao="$([ "$continuar" = 1 ] && echo sim)" nivel_anterior="$nivel_anterior" || aviso "não consegui gravar o registro de decisões"
 
 nohup "$0" --executar "$reg" >/dev/null 2>&1 &
 

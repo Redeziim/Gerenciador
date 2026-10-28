@@ -519,5 +519,24 @@ else
   echo "  pulado (sem tmux)"
 fi
 
+echo "registro de decisões"
+dec="$proj/.git/agentes/decisoes.jsonl"
+rm -f "$dec"
+"$S/tarefa.sh" codex "$proj" dec-a --raciocinio medium --motivo "ajuste simples" --reservar docs/dec-a "CRIAR docs/dec-a/a.txt" >/dev/null
+espera dec-a
+"$S/tarefa.sh" codex "$proj" dec-a --raciocinio high --motivo "veio fraco" --continuar "CRIAR docs/dec-a/b.txt" >/dev/null
+espera dec-a
+checa "grava abertura com nível e motivo" jq -e 'select(.evento=="abertura" and .nome=="dec-a" and .nivel=="medium" and .motivo=="ajuste simples")' "$dec"
+checa "grava fim com status" jq -e 'select(.evento=="fim" and .nome=="dec-a" and .status=="concluida")' "$dec"
+checa "continuação guarda o nível anterior" jq -e 'select(.continuacao=="sim" and .nivel=="high" and .nivel_anterior=="medium")' "$dec"
+"$S/decisoes.sh" "$proj" resultado dec-a ajustar "faltou teste" >/dev/null
+nega "resultado inválido é recusado" "$S/decisoes.sh" "$proj" resultado dec-a talvez
+nega "resultado de tarefa desconhecida é recusado" "$S/decisoes.sh" "$proj" resultado nao-existe aprovada
+"$S/decisoes.sh" "$proj" registrar docs-dec sonnet medium "texto" >/dev/null
+resumo="$("$S/decisoes.sh" "$proj")"
+checa "resumo conta a escalada e o ajuste" grep -Eq '^codex +high +1 +1 +0 +1 +0 +1 +0' <<<"$resumo"
+checa "resumo inclui execução manual" grep -Eq '^sonnet +medium +1 +1' <<<"$resumo"
+checa "listar mostra o motivo" grep -q 'veio fraco' <<<"$("$S/decisoes.sh" "$proj" listar)"
+
 echo
 if [ "$falhas" -eq 0 ]; then echo "tudo certo"; else echo "$falhas falha(s)"; exit 1; fi
