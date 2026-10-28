@@ -36,9 +36,11 @@ while IFS= read -r linha; do
     "CRIAR "*) f="${linha#CRIAR }"; mkdir -p "$(dirname "$f")"; echo "feito por $AGENTE" >"$f" ;;
     "DORMIR "*) sleep "${linha#DORMIR }" ;;
     FALHAR) echo "falhei"; exit 3 ;;
+    PERGUNTAR) pergunta=1 ;;
   esac
 done <<<"$prompt"
-echo "Resumo do $AGENTE: pronto" >"${saida:-/dev/stdout}"
+{ echo "Resumo do $AGENTE: pronto"
+  [ -z "${pergunta:-}" ] || printf '\nPERGUNTA:\nusar a opção A ou B? Eu escolheria A.\n'; } >"${saida:-/dev/stdout}"
 EOF
 cat >"$tmp/bin/codex" <<'EOF'
 #!/usr/bin/env bash
@@ -537,6 +539,32 @@ resumo="$("$S/decisoes.sh" "$proj")"
 checa "resumo conta a escalada e o ajuste" grep -Eq '^codex +high +1 +1 +0 +1 +0 +1 +0' <<<"$resumo"
 checa "resumo inclui execução manual" grep -Eq '^sonnet +medium +1 +1' <<<"$resumo"
 checa "listar mostra o motivo" grep -q 'veio fraco' <<<"$("$S/decisoes.sh" "$proj" listar)"
+
+echo "dúvida do agente"
+"$S/tarefa.sh" codex "$proj" duvida-a --reservar docs/duvida-a "CRIAR docs/duvida-a/a.txt
+PERGUNTAR" >/dev/null
+"$S/tarefa.sh" codex "$proj" depende-d --depois duvida-a "CRIAR docs/depende-d/a.txt" >/dev/null
+"$S/esperar.sh" "$proj" duvida-a 60 >"$tmp/esp.txt" 2>&1; cod=$?
+checa "pergunta deixa a tarefa aguardando resposta" test "$(campo duvida-a status)" = aguardando-resposta
+checa "esperar sai com código 3" test "$cod" = 3
+checa "esperar mostra a pergunta" grep -q 'PERGUNTA:' "$tmp/esp.txt"
+checa "o trabalho já feito foi commitado" git -C "$proj" cat-file -e codex/duvida-a:docs/duvida-a/a.txt
+nega "a reserva continua presa" "$S/quadro.sh" livre "$proj" docs/duvida-a/x.txt
+checa "status mostra o estado da pergunta" grep -q 'aguardando-resposta' <<<"$("$S/status.sh" "$proj")"
+checa "painel mostra a pergunta ao gerente" grep -q 'Pergunta ao gerente' <<<"$("$S/status.sh" "$proj" --painel)"
+sleep 1
+checa "dependente continua esperando" test "$(campo depende-d status)" = aguardando
+checa "prompt traz as regras de dúvida" grep -q '^PERGUNTA:\|"PERGUNTA:"' "$(campo duvida-a prompt)"
+"$S/decisoes.sh" "$proj" duvida duvida-a usuario "escolha de produto" >/dev/null
+nega "destino inválido é recusado" "$S/decisoes.sh" "$proj" duvida duvida-a ninguem
+"$S/tarefa.sh" codex "$proj" duvida-a --continuar "Resposta: opção A" >/dev/null
+espera duvida-a
+checa "continuar depois da resposta conclui" test "$(campo duvida-a status)" = concluida
+nega "resumo antigo não segue valendo" grep -q '^PERGUNTA:' "$(campo duvida-a resumo)"
+espera depende-d
+checa "dependente roda depois da resposta" test "$(campo depende-d status)" = concluida
+resumo="$("$S/decisoes.sh" "$proj")"
+checa "resumo conta dúvida e usuário" grep -Eq '^codex .* 1 +1$' <<<"$resumo"
 
 echo
 if [ "$falhas" -eq 0 ]; then echo "tudo certo"; else echo "$falhas falha(s)"; exit 1; fi

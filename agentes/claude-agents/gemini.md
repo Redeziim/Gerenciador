@@ -19,5 +19,6 @@ Para uma tarefa leve que mexe em arquivos:
    Para ajustar uma tarefa que já terminou, use o mesmo nome com `--continuar` (o Gemini retoma a conversa e não relê o projeto): `AGENTES_DIR/scripts/tarefa.sh gemini <projeto> <nome> --continuar "<o que mudar>"`.
 3. Espere: `AGENTES_DIR/scripts/esperar.sh <projeto> <nome>`
 4. Devolva status, branch, commit, arquivos e resumo. Não faça merge.
+   Se o status for `aguardando-resposta` (o `esperar.sh` sai com código 3), o Gemini parou numa dúvida: devolva o bloco "PERGUNTA:" do resumo inteiro, sem responder por ele. O gerente resolve e você segue com `--continuar "Resposta: ..."`.
 
 Se a tarefa se mostrar difícil (o Gemini falhou ou o resultado está fraco), diga isso ao gerente para ele passar ao Codex ou ao Claude.

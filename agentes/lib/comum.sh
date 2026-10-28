@@ -128,6 +128,10 @@ decisao_log() {
 # Estados em que uma tarefa ainda segura as reservas dela.
 ativa() { case "$1" in rodando|aguardando) return 0 ;; *) return 1 ;; esac; }
 
+# Estados em que a tarefa ainda segura as reservas e o worktree: os ativos mais o de dúvida do agente,
+# que terminou o que podia e espera a resposta do gerente (continua com tarefa.sh --continuar).
+segura() { case "$1" in rodando|aguardando|aguardando-resposta) return 0 ;; *) return 1 ;; esac; }
+
 # Duas reservas se sobrepõem quando são o mesmo caminho, quando uma é pasta da outra,
 # ou quando uma é um padrão (glob) que casa com a outra.
 sobrepoe() {
@@ -152,7 +156,7 @@ conflitos() {
     [ -f "$reg" ] || continue
     nome="$(registro_get "$reg" nome)"
     [ "$nome" = "$ignorar" ] && continue
-    ativa "$(registro_get "$reg" status)" || continue
+    segura "$(registro_get "$reg" status)" || continue
     if [ -n "${CONFLITOS_SO_DE:-}" ]; then
       case ",$CONFLITOS_SO_DE," in *",$(registro_get "$reg" agente),"*) ;; *) continue ;; esac
     fi

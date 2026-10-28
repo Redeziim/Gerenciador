@@ -7,6 +7,8 @@
 #   decisoes.sh <projeto> listar [N]            as últimas N execuções (padrão 20)
 #   decisoes.sh <projeto> resultado <nome> <aprovada|ajustar|reprovada> ["observação"]
 #       registra o resultado da revisão da tarefa (feito pelo gerente depois de ler o diff)
+#   decisoes.sh <projeto> duvida <nome> <gerente|usuario> ["observação"]
+#       registra quem resolveu a dúvida que o agente deixou (o gerente com o contexto que tem, ou o usuário)
 #   decisoes.sh <projeto> registrar <nome> <agente> <nível> ["motivo"]
 #       registra à mão uma execução fora do tarefa.sh (ex.: subagente Claude Sonnet)
 #
@@ -15,7 +17,7 @@
 
 source "$(dirname "$(readlink -f "$0")")/../lib/comum.sh"
 
-[ $# -ge 1 ] || { sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+[ $# -ge 1 ] || { sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 precisa git jq
 
 raiz="$(raiz_projeto "$1")"; shift
@@ -35,6 +37,7 @@ execucoes() {
         | if $i == null then .
           elif $e.evento == "fim" then .[$i] += {status:$e.status, commit:($e.commit // "")}
           elif $e.evento == "revisao" then .[$i] += {revisao:$e.resultado, obs:($e.obs // "")}
+          elif $e.evento == "resolucao" then .[$i] += {destino:$e.destino}
           else . end
       end)' "$arq"
 }
@@ -43,7 +46,7 @@ case "${1:-resumo}" in
   resumo)
     ex="$(execucoes)"
     [ "$ex" != '[]' ] || { echo "nenhuma decisão registrada em $arq"; exit 0; }
-    printf '%-8s %-8s %5s %9s %6s %9s %8s %9s %9s\n' agente nivel exec concluida falhou escalada aprovada ajustar reprovada
+    printf '%-8s %-8s %5s %9s %6s %9s %8s %9s %9s %7s %7s\n' agente nivel exec concluida falhou escalada aprovada ajustar reprovada duvidas usuario
     jq -r '
       group_by([.agente, (if .nivel == "" then "-" else .nivel end)])[]
       | [.[0].agente, (if .[0].nivel == "" then "-" else .[0].nivel end), length,
@@ -52,12 +55,15 @@ case "${1:-resumo}" in
          (map(select(.continuacao)) | length),
          (map(select(.revisao == "aprovada")) | length),
          (map(select(.revisao == "ajustar")) | length),
-         (map(select(.revisao == "reprovada")) | length)]
-      | @tsv' <<<"$ex" | while IFS=$'\t' read -r a n e c f s ap aj rp; do
-        printf '%-8s %-8s %5s %9s %6s %9s %8s %9s %9s\n' "$a" "$n" "$e" "$c" "$f" "$s" "$ap" "$aj" "$rp"
+         (map(select(.revisao == "reprovada")) | length),
+         (map(select(.status == "aguardando-resposta")) | length),
+         (map(select(.destino == "usuario")) | length)]
+      | @tsv' <<<"$ex" | while IFS=$'\t' read -r a n e c f s ap aj rp d u; do
+        printf '%-8s %-8s %5s %9s %6s %9s %8s %9s %9s %7s %7s\n' "$a" "$n" "$e" "$c" "$f" "$s" "$ap" "$aj" "$rp" "$d" "$u"
       done
     echo
-    echo "escalada = continuação (--continuar) da tarefa; leitura: nível com muita escalada ou ajuste pede subir na tabela."
+    echo "escalada = continuação (--continuar) da tarefa; duvidas = execuções que pararam numa PERGUNTA; usuario = dúvidas que foram ao usuário."
+    echo "leitura: nível com muita escalada ou ajuste pede subir na tabela; muita dúvida pede prompt mais fechado."
     ;;
   listar)
     n="${2:-20}"; [[ "$n" =~ ^[0-9]+$ ]] || erro "N inválido"
@@ -72,6 +78,14 @@ case "${1:-resumo}" in
     decisao_log "$estado" revisao "$nome" resultado="$res" obs="${4:-}"
     echo "resultado de '$nome': $res"
     ;;
+  duvida)
+    [ $# -ge 3 ] || erro "uso: decisoes.sh <projeto> duvida <nome> <gerente|usuario> [observação]"
+    case "$3" in gerente|usuario) ;; *) erro "destino '$3' inválido (gerente ou usuario)" ;; esac
+    [ -s "$arq" ] && jq -e --arg n "$2" 'select(.nome == $n and .evento == "abertura")' "$arq" >/dev/null \
+      || erro "não há execução registrada de '$2'"
+    decisao_log "$estado" resolucao "$2" destino="$3" obs="${4:-}"
+    echo "dúvida de '$2' resolvida por: $3"
+    ;;
   registrar)
     [ $# -ge 4 ] || erro "uso: decisoes.sh <projeto> registrar <nome> <agente> <nível> [motivo]"
     nome_valido "$2"
@@ -79,5 +93,5 @@ case "${1:-resumo}" in
     decisao_log "$estado" fim "$2" status=concluida agente="$3"
     echo "registrado: $2 ($3, $4)"
     ;;
-  *) erro "opção '$1' desconhecida (listar, resultado, registrar)" ;;
+  *) erro "opção '$1' desconhecida (listar, resultado, duvida, registrar)" ;;
 esac

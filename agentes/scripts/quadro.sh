@@ -109,7 +109,7 @@ case "$acao" in
     fi
     for reg in ${regs[@]+"${regs[@]}"}; do
       nome="$(registro_get "$reg" nome)"
-      if ativa "$(registro_get "$reg" status)"; then
+      if segura "$(registro_get "$reg" status)"; then
         # --todas não mexe no que ainda está rodando; pelo nome, para antes de limpar.
         [ "$alvo" != "--todas" ] || continue
         "$0" cancelar "$raiz" "$nome" >/dev/null

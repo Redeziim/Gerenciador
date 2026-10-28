@@ -58,6 +58,21 @@ Todas as frentes ficam num quadro só, que você vê com `status.sh <projeto>`. 
 - Dê a cada tarefa um escopo fechado: objetivo, arquivos que pode tocar (as reservas), o que não deve tocar e como verificar.
 - Divida o trabalho de forma que as reservas não se cruzem. O que precisa vir em ordem vai com `--depois`.
 
+## Dúvida do agente
+
+O Codex e o Gemini não conversam durante a execução. Pelo prompt do `tarefa.sh` eles tratam a dúvida assim:
+
+- **Detalhe de implementação:** seguem pela opção mais conservadora e listam a suposição no resumo ("Suposições:"). Leia essa lista na revisão.
+- **Escopo, arquivo fora das reservas ou comportamento do produto:** param e terminam o resumo com um bloco "PERGUNTA:" (o que não sabem, as opções e a que escolheriam). A tarefa vira `aguardando-resposta`, mantém as reservas e o worktree, e `esperar.sh` sai com código 3.
+- **Nível insuficiente:** escrevem "NIVEL: subir" no resumo. Refaça um nível acima (regra 4).
+
+Quando uma tarefa ficar `aguardando-resposta`:
+
+1. **Resolva você mesmo** se o prompt original, o mapa do código, o `contexto-projeto.md` ou o próprio site já respondem. Registre com `decisoes.sh <projeto> duvida <nome> gerente` e siga com `tarefa.sh ... <nome> --continuar "Resposta: ..."`.
+2. **Passe ao usuário** se a resposta é decisão de produto, risco ou gosto que o contexto não resolve. Pergunte com as opções e a sua recomendação, registre com `decisoes.sh <projeto> duvida <nome> usuario` e só então siga com `--continuar` levando a resposta dele.
+3. Rode o `decisoes.sh ... duvida` **antes** do `--continuar`, para o registro ficar na execução que fez a pergunta.
+4. Não deixe a pergunta parada e não chute pelo agente: as reservas ficam presas enquanto ela espera. Se o usuário não responder, cancele a tarefa (`quadro.sh cancelar`).
+
 ## Mapa do código
 
 Se o projeto tem `.claude/mapa/` (uma nota por módulo, com `[[links]]` como num vault do Obsidian):

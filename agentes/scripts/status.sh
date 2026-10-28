@@ -50,7 +50,7 @@ arquivos_da() {
 # Esconde tarefas encerradas há mais de 12 horas, a não ser com --todas.
 visivel() {
   [ "$todas" = 1 ] && return 0
-  ativa "$(registro_get "$1" status)" && return 0
+  segura "$(registro_get "$1" status)" && return 0
   local fim
   fim="$(registro_get "$1" fim)"
   [ -z "$fim" ] && return 0
@@ -130,19 +130,21 @@ desenhar_painel() {
   local giro="${quadros[$(($(date +%s) % 6))]}"
 
   # Contagem para o cabeçalho.
-  local n_rod=0 n_agu=0 n_ok=0 n_mal=0 reg st
+  local n_rod=0 n_agu=0 n_per=0 n_ok=0 n_mal=0 reg st
   for reg in ${regs[@]+"${regs[@]}"}; do
     visivel "$reg" || continue
     case "$(registro_get "$reg" status)" in
       rodando) n_rod=$((n_rod + 1)) ;;
       aguardando) n_agu=$((n_agu + 1)) ;;
+      aguardando-resposta) n_per=$((n_per + 1)) ;;
       concluida) n_ok=$((n_ok + 1)) ;;
       *) n_mal=$((n_mal + 1)) ;;
     esac
   done
 
   local resumo_cab=""
-  [ "$n_rod" -gt 0 ] && resumo_cab="$n_rod rodando"
+  [ "$n_per" -gt 0 ] && resumo_cab="$n_per com pergunta"
+  [ "$n_rod" -gt 0 ] && resumo_cab="${resumo_cab:+$resumo_cab · }$n_rod rodando"
   [ "$n_agu" -gt 0 ] && resumo_cab="${resumo_cab:+$resumo_cab · }$n_agu aguardando"
   [ "$n_ok" -gt 0 ] && resumo_cab="${resumo_cab:+$resumo_cab · }$n_ok concluída(s)"
   [ "$n_mal" -gt 0 ] && resumo_cab="${resumo_cab:+$resumo_cab · }$n_mal com problema"
@@ -159,7 +161,7 @@ desenhar_painel() {
   "$(dirname "$(readlink -f "$0")")/uso-codex.sh" --painel 2>/dev/null | sed 's/^/  /' || true
   echo
 
-  local mostradas=$((n_rod + n_agu + n_ok + n_mal))
+  local mostradas=$((n_rod + n_agu + n_per + n_ok + n_mal))
   if [ "$mostradas" -eq 0 ]; then
     echo "  ${fraco}Nenhuma tarefa no quadro.${normal}"
     echo "  ${fraco}Peça ao Claude para dividir o trabalho entre o Codex e o Gemini.${normal}"
@@ -167,14 +169,15 @@ desenhar_painel() {
 
   local passada nome agente titulo inicio fim commit modelo racio wt base log resumo res dep
   local g cg rotulo tempo plain atividade linha arq info fora r qtd lim
-  for passada in rodando aguardando outras; do
+  for passada in pergunta rodando aguardando outras; do
     for reg in ${regs[@]+"${regs[@]}"}; do
       visivel "$reg" || continue
       st="$(registro_get "$reg" status)"
       case "$passada" in
+        pergunta) [ "$st" = aguardando-resposta ] || continue ;;
         rodando) [ "$st" = rodando ] || continue ;;
         aguardando) [ "$st" = aguardando ] || continue ;;
-        *) ativa "$st" && continue ;;
+        *) ativa "$st" && continue; [ "$st" = aguardando-resposta ] && continue ;;
       esac
 
       IFS=$'\x1f' read -r nome agente titulo inicio fim commit modelo racio wt base log resumo res dep < <(
@@ -186,6 +189,7 @@ desenhar_painel() {
       case "$st" in
         rodando) g="$giro"; cg="$laranja"; rotulo="" ;;
         aguardando) g="◌"; cg="$amarelo"; rotulo="aguardando" ;;
+        aguardando-resposta) g="?"; cg="$amarelo"; rotulo="pergunta" ;;
         concluida) g="✓"; cg="$verde"; rotulo="concluída" ;;
         interrompida) g="✗"; cg="$vermelho"; rotulo="interrompida" ;;
         cancelada) g="⊘"; cg="$fraco"; rotulo="cancelada" ;;
@@ -219,6 +223,11 @@ desenhar_painel() {
         aguardando)
           echo "${sub}${amarelo}Esperando${normal} ${dep:-outra tarefa}"
           ;;
+        aguardando-resposta)
+          linha=""
+          [ ! -s "$resumo" ] || linha="$(grep -A1 -m1 '^PERGUNTA:' "$resumo" 2>/dev/null | sed -e 's/^PERGUNTA:[[:space:]]*//' | grep -m1 -v '^[[:space:]]*$' || true)"
+          echo "${sub}${amarelo}Pergunta ao gerente${normal}${linha:+: $(cortar "$linha" $((largura - 26)))}"
+          ;;
         concluida)
           if [ -s "$resumo" ]; then
             linha="$(grep -m1 -v '^[[:space:]]*$' "$resumo" 2>/dev/null | sed -e 's/^[#*[:space:]-]*//' -e 's/\[\([^]]*\)\]([^)]*)/\1/g' -e 's/[`*]//g' || true)"
@@ -241,7 +250,7 @@ desenhar_painel() {
       while IFS=$'\t' read -r arq info; do
         [ -n "$arq" ] || continue
         qtd=$((qtd + 1))
-        case "$st" in rodando|aguardando|concluida) printf '%s\t%s\n' "$arq" "$nome" >>"$toques" ;; esac
+        case "$st" in rodando|aguardando|aguardando-resposta|concluida) printf '%s\t%s\n' "$arq" "$nome" >>"$toques" ;; esac
         [ "$qtd" -le "$lim" ] || continue
         fora=""
         if [ -n "$res" ]; then
@@ -323,7 +332,7 @@ for reg in ${regs[@]+"${regs[@]}"}; do
       done < <(registro_lista "$reg" reservas)
     fi
     echo "    $arq$fora"
-    case "$st" in rodando|aguardando|concluida) printf '%s\t%s\n' "$arq" "$nome" >>"$toques" ;; esac
+    case "$st" in rodando|aguardando|aguardando-resposta|concluida) printf '%s\t%s\n' "$arq" "$nome" >>"$toques" ;; esac
   done < <(arquivos_da "$reg")
 done
 

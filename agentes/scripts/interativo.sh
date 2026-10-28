@@ -79,7 +79,7 @@ desenhar() {
     [ -f "$reg" ] || continue
     st="$(registro_get "$reg" status)"; ag="$(registro_get "$reg" agente)"; tit="$(registro_get "$reg" titulo)"
     case "$st" in
-      rodando) g="●"; cor="$lar" ;; aguardando) g="◌"; cor="$amar" ;;
+      rodando) g="●"; cor="$lar" ;; aguardando) g="◌"; cor="$amar" ;; aguardando-resposta) g="?"; cor="$amar" ;;
       concluida) g="✓"; cor="$verde" ;; cancelada) g="⊘"; cor="$fra" ;; *) g="✗"; cor="$verm" ;;
     esac
     tempo="$(jq -rn --arg i "$(registro_get "$reg" inicio)" --arg f "$(registro_get "$reg" fim)" '

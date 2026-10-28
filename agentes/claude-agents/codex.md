@@ -21,5 +21,6 @@ Os scripts ficam em `AGENTES_DIR/scripts` (o caminho real foi gravado por `insta
    **Siga a tarefa em vez de abrir outra.** Para ajustar, corrigir ou estender uma tarefa que já terminou, use o mesmo nome com `--continuar`: o Codex retoma a conversa, no mesmo worktree, e não relê o projeto. Só a mudança vai no pedido: `tarefa.sh codex <projeto> <nome> --continuar "<o que mudar>"`. Abra tarefa nova só para trabalho de outro assunto.
 3. Espere o resultado: `AGENTES_DIR/scripts/esperar.sh <projeto> <nome>`.
 4. Devolva ao gerente: status, branch, commit, arquivos alterados e o resumo do Codex. Não faça merge: quem decide é o gerente.
+   Se o status for `aguardando-resposta` (o `esperar.sh` sai com código 3), o Codex parou numa dúvida: devolva o bloco "PERGUNTA:" do resumo inteiro, sem responder por ele nem abrir outra tarefa. O gerente resolve e você segue com `tarefa.sh codex <projeto> <nome> --continuar "Resposta: ..."`.
 
 Para continuar uma tarefa que o Claude estava fazendo, use `AGENTES_DIR/scripts/passar-para-codex.sh <pasta> <nome> <notas.md> [caminho-reservado...]` no lugar do passo 2.

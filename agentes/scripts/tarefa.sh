@@ -75,6 +75,7 @@ if [ "${1:-}" = "--executar" ]; then
   registro_set "$reg" status rodando
   registro_set "$reg" inicio "$(agora)"
 
+  rm -f "$resumo"  # um resumo de execução anterior não pode passar por este
   status=0
   {
     echo "== $(agora) início ($agente)"
@@ -124,6 +125,11 @@ if [ "${1:-}" = "--executar" ]; then
   fi
 
   registro_set "$reg" commit "$commit"
+  if [ "$status" = 0 ] && [ -s "$resumo" ] && grep -q '^PERGUNTA:' "$resumo"; then
+    # O agente parou numa dúvida: o gerente responde e segue com --continuar. Reservas e worktree continuam presos.
+    echo "== $(agora) o agente fez uma pergunta; aguardando resposta" >>"$log"
+    encerrar aguardando-resposta
+  fi
   if [ "$status" = 0 ]; then encerrar concluida; else encerrar falhou; fi
 fi
 
@@ -261,6 +267,9 @@ Você é o agente $agente, coordenado pelo Claude (gerente). Regras:
 $regra_reserva
 - Não faça commit, não troque de branch e não mexa em outros worktrees. O commit é feito pelo script.
 - Faça só o que a tarefa pede. Se algo fora do escopo for necessário, pare e explique no resumo.
+- Dúvida de detalhe de implementação (não muda comportamento nem escopo): siga pela opção mais conservadora e liste a suposição no resumo, sob "Suposições:".
+- Dúvida de escopo, de arquivo fora dos seus caminhos ou de comportamento do produto: não adivinhe. Faça o que já está certo e termine o resumo com um bloco que começa numa linha só com "PERGUNTA:", dizendo o que você não sabe, as opções que vê e a que escolheria. O gerente responde e você continua depois.
+- Se o nível de raciocínio que recebeu pareceu insuficiente para a tarefa, escreva "NIVEL: subir" no resumo.
 - Não releia o projeto inteiro: abra só os arquivos de que precisa.
 - Ao terminar, escreva um resumo curto: o que mudou, arquivos tocados e o que ficou pendente.
 ${briefing:+

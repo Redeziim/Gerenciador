@@ -39,4 +39,9 @@ elif [ -n "$(registro_get "$reg" log)" ]; then
   echo "sem resumo; últimas linhas do log:"
   tail -n 30 "$(registro_get "$reg" log)" | sed 's/^/  /'
 fi
+if [ "$st" = aguardando-resposta ]; then
+  echo "dúvida do agente: resolva com o contexto do projeto ou pergunte ao usuário, e siga com:"
+  echo "  tarefa.sh $(registro_get "$reg" agente) <projeto> $2 --continuar \"Resposta: ...\""
+  exit 3
+fi
 [ "$st" = concluida ]

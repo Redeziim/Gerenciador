@@ -43,8 +43,8 @@ case "$arq" in
   "$wts"/*)
     t="${arq#"$wts"/}"; t="${t%%/*}"
     treg="$estado/tarefas/$t.json"
-    if [ -f "$treg" ] && ativa "$(registro_get "$treg" status)"; then
-      echo "Bloqueado: '$arq' fica no worktree da tarefa '$t' ($(registro_get "$treg" agente)), que ainda está ativa. Espere com esperar.sh ou cancele com quadro.sh cancelar." >&2
+    if [ -f "$treg" ] && segura "$(registro_get "$treg" status)"; then
+      echo "Bloqueado: '$arq' fica no worktree da tarefa '$t' ($(registro_get "$treg" agente)), que ainda está ativa ou espera uma resposta. Espere com esperar.sh ou cancele com quadro.sh cancelar." >&2
       exit 2
     fi
     exit 0
