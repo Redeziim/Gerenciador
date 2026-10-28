@@ -78,6 +78,38 @@ texto_pedido() {
 
 agora() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
+# Nível padrão do Codex pelo texto e pela quantidade de reservas.
+nivel_sugerido() {
+  local num_reservas="$1" texto="$2" palavra busca
+  texto="${texto,,}"
+  texto="${texto//[áàâãäÁÀÂÃÄ]/a}"
+  texto="${texto//[éèêëÉÈÊË]/e}"
+  texto="${texto//[íìîïÍÌÎÏ]/i}"
+  texto="${texto//[óòôõöÓÒÔÕÖ]/o}"
+  texto="${texto//[úùûüÚÙÛÜ]/u}"
+  texto="${texto//[çÇ]/c}"
+  for palavra in 'migração:migracao' migration 'concorrência:concorrencia' 'race condition' \
+    'segurança:seguranca' security 'autenticação:autenticacao' auth esquema schema criptografia arquitetura; do
+    busca="${palavra#*:}"
+    if [[ "$texto" == *"$busca"* ]]; then
+      printf "xhigh|heurística: palavra '%s'\n" "${palavra%%:*}"
+      return 0
+    fi
+  done
+  if [ "$num_reservas" -ge 4 ]; then
+    printf 'high|heurística: %s reservas\n' "$num_reservas"
+    return 0
+  fi
+  for palavra in refator refactor 'vários arquivos:varios arquivos' 'bug difícil:bug dificil'; do
+    busca="${palavra#*:}"
+    if [[ "$texto" == *"$busca"* ]]; then
+      printf "high|heurística: palavra '%s'\n" "${palavra%%:*}"
+      return 0
+    fi
+  done
+  echo 'medium|heurística: padrão'
+}
+
 # Grava um campo no registro JSON da tarefa. Uso: registro_set <arquivo> <campo> <valor>
 registro_set() {
   local arq="$1" campo="$2" valor="$3" tmp

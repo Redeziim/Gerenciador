@@ -14,7 +14,7 @@
 #   --base <ref>          ponto de partida da branch (padrão: HEAD do projeto)
 #   --forcar              abre mesmo com conflito de reserva
 #   --modelo <nome>       modelo do agente (Codex: codex.env, sol mais novo, padrão do Codex; Gemini: GEMINI_MODELO)
-#   --raciocinio <nível>  só Codex: low, medium, high ou xhigh (padrão: o do ~/.codex/config.toml)
+#   --raciocinio <nível>  só Codex: low, medium, high ou xhigh (sem opção/configuração: heurística)
 #   --motivo "<texto>"    por que este nível/modelo (vai para o registro de decisões, ver decisoes.sh)
 #   --continuar           segue uma tarefa já terminada com o mesmo nome: reaproveita o worktree, a branch
 #                         e a conversa do agente (ele não relê o projeto). A tarefa nova só diz o que mudar.
@@ -144,14 +144,14 @@ case "$agente" in
 esac
 nome_valido "$nome"
 
-base="HEAD"; tarefa=""; forcar=0; modelo_pedido=""; raciocinio=""; continuar=0; motivo=""
+base="HEAD"; tarefa=""; forcar=0; modelo_pedido=""; raciocinio=""; continuar=0; motivo=""; motivo_passado=0
 reservas=(); depois=(); notas_pedidas=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --base) base="$2"; shift 2 ;;
     --modelo) [ $# -ge 2 ] || erro "--modelo precisa de um nome"; modelo_pedido="$2"; shift 2 ;;
     --raciocinio) [ $# -ge 2 ] || erro "--raciocinio precisa de um nível"; raciocinio="$2"; shift 2 ;;
-    --motivo) [ $# -ge 2 ] || erro "--motivo precisa de um texto"; motivo="$2"; shift 2 ;;
+    --motivo) [ $# -ge 2 ] || erro "--motivo precisa de um texto"; motivo="$2"; motivo_passado=1; shift 2 ;;
     --reservar) reservas+=("$2"); shift 2 ;;
     --nota) notas_pedidas+=("$2"); shift 2 ;;
     --depois) depois+=("$2"); shift 2 ;;
@@ -177,10 +177,6 @@ if [ "$agente" = codex ]; then # nível fixado pelo usuário (gerente-config.sh)
   fixo=""; ger="$(dir_estado "$(raiz_projeto "$projeto")")/gerente.env"
   [ ! -f "$ger" ] || fixo="$(sed -n 's/^codex_nivel=//p' "$ger" | tail -n 1)"
   [ -z "$fixo" ] || raciocinio="$fixo"
-fi
-if [ -n "$raciocinio" ]; then
-  [ "$agente" = codex ] || erro "--raciocinio só vale para o Codex"
-  case "$raciocinio" in low|medium|high|xhigh|max|ultra) ;; *) erro "raciocínio '$raciocinio' inválido (use low, medium, high, xhigh, max ou ultra)" ;; esac
 fi
 [[ -z "$modelo_pedido" || "$modelo_pedido" =~ ^[A-Za-z0-9._:/-]+$ ]] || erro "nome de modelo '$modelo_pedido' inválido"
 
@@ -212,6 +208,20 @@ if [ "$continuar" = 1 ]; then
 else
   git -C "$raiz" show-ref --verify --quiet "refs/heads/$branch" && erro "a branch '$branch' já existe"
   [ -e "$wt" ] && erro "o worktree '$wt' já existe"
+fi
+
+if [ "$agente" = codex ] && [ -z "$raciocinio" ]; then
+  if [ "$continuar" = 1 ]; then
+    raciocinio="$(registro_get "$reg" raciocinio)"
+  else
+    sugestao="$(nivel_sugerido "${#reservas[@]}" "$tarefa")"
+    raciocinio="${sugestao%%|*}"
+    [ "$motivo_passado" = 1 ] || motivo="${sugestao#*|}"
+  fi
+fi
+if [ -n "$raciocinio" ]; then
+  [ "$agente" = codex ] || erro "--raciocinio só vale para o Codex"
+  case "$raciocinio" in low|medium|high|xhigh|max|ultra) ;; *) erro "raciocínio '$raciocinio' inválido (use low, medium, high, xhigh, max ou ultra)" ;; esac
 fi
 
 if [ ${#reservas[@]} -gt 0 ] && choques="$(conflitos "$estado" "$nome" "${reservas[@]}")"; then

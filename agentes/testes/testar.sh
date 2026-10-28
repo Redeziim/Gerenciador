@@ -176,7 +176,8 @@ checa "registra raciocínio e modelo" test "$(campo simples raciocinio)/$(campo 
 : >"$CODEX_ARGS_LOG"
 "$S/tarefa.sh" codex "$proj" padrao --reservar docs/padrao "CRIAR docs/padrao/a.txt" >/dev/null
 espera padrao
-nega "sem opções, usa o config do codex" grep -q -e 'model_reasoning_effort' -e ' -m ' "$CODEX_ARGS_LOG"
+checa "sem opções, usa raciocínio medium" grep -q 'model_reasoning_effort="medium"' "$CODEX_ARGS_LOG"
+nega "sem cache, mantém o modelo do config do codex" grep -q -- ' -m ' "$CODEX_ARGS_LOG"
 checa "sol sem cache imprime vazio" test -z "$("$S/codex-config.sh" sol)"
 mkdir -p "$CODEX_HOME"
 cat >"$tmp/models_cache.json" <<'EOF'
@@ -205,6 +206,81 @@ rm "$CODEX_HOME/models_cache.json"
 nega "raciocínio inválido é recusado" "$S/tarefa.sh" codex "$proj" ruim --raciocinio extremo "x"
 nega "raciocínio só vale para o codex" "$S/tarefa.sh" gemini "$proj" ruim2 --raciocinio low "x"
 nega "modelo com caracteres estranhos é recusado" "$S/tarefa.sh" codex "$proj" ruim3 --modelo 'a;b' "x"
+unset CODEX_ARGS_LOG
+
+echo "heurística de nível"
+sugerido() ( source "$aqui/lib/comum.sh"; nivel_sugerido "$@"; )
+for palavra in MIGRAÇÃO MIGRACAO MIGRATION CONCORRÊNCIA CONCORRENCIA 'RACE CONDITION' \
+  SEGURANÇA SEGURANCA SECURITY AUTENTICAÇÃO AUTENTICACAO AUTH ESQUEMA SCHEMA CRIPTOGRAFIA ARQUITETURA; do
+  sugestao="$(sugerido 0 "$palavra")"
+  checa "termo crítico: $palavra" test "${sugestao%%|*}" = xhigh
+done
+for palavra in REFATORAÇÃO REFACTOR 'VÁRIOS ARQUIVOS' 'VARIOS ARQUIVOS' 'BUG DIFÍCIL' 'BUG DIFICIL'; do
+  sugestao="$(sugerido 0 "$palavra")"
+  checa "termo difícil: $palavra" test "${sugestao%%|*}" = high
+done
+checa "três reservas ainda usam medium" test "$(sugerido 3 'ajuste simples')" = 'medium|heurística: padrão'
+checa "quatro reservas já usam high" test "$(sugerido 4 'ajuste simples')" = 'high|heurística: 4 reservas'
+checa "termo crítico vence a quantidade de reservas" test "$(sugerido 5 'migração')" = "xhigh|heurística: palavra 'migração'"
+
+export CODEX_ARGS_LOG="$tmp/codex-args"; : >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" heur-migracao --reservar docs/heur-migracao "MIGRAÇÃO
+CRIAR docs/heur-migracao/a.txt" >/dev/null
+espera heur-migracao
+checa "migração chega ao codex como xhigh" grep -q 'model_reasoning_effort="xhigh"' "$CODEX_ARGS_LOG"
+checa "registra o nível sugerido" test "$(campo heur-migracao raciocinio)" = xhigh
+checa "motivo da heurística entra nas decisões" jq -e \
+  'select(.evento=="abertura" and .nome=="heur-migracao" and .nivel=="xhigh" and .motivo=="heurística: palavra '\''migração'\''")' \
+  "$proj/.git/agentes/decisoes.jsonl"
+: >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" heur-reservas --reservar docs/heur-reservas/a --reservar docs/heur-reservas/b \
+  --reservar docs/heur-reservas/c --reservar docs/heur-reservas/d --reservar docs/heur-reservas/e \
+  'CRIAR docs/heur-reservas/a' >/dev/null
+espera heur-reservas
+checa "cinco reservas chegam ao codex como high" grep -q 'model_reasoning_effort="high"' "$CODEX_ARGS_LOG"
+checa "registra high por reservas" test "$(campo heur-reservas raciocinio)" = high
+checa "registra o motivo das reservas" jq -e \
+  'select(.evento=="abertura" and .nome=="heur-reservas" and .motivo=="heurística: 5 reservas")' "$proj/.git/agentes/decisoes.jsonl"
+: >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" heur-comum --reservar docs/heur-comum 'CRIAR docs/heur-comum/a.txt' >/dev/null
+espera heur-comum
+checa "tarefa comum chega ao codex como medium" grep -q 'model_reasoning_effort="medium"' "$CODEX_ARGS_LOG"
+checa "registra medium para tarefa comum" test "$(campo heur-comum raciocinio)" = medium
+checa "registra o motivo padrão" jq -e \
+  'select(.evento=="abertura" and .nome=="heur-comum" and .motivo=="heurística: padrão")' "$proj/.git/agentes/decisoes.jsonl"
+: >"$CODEX_ARGS_LOG"
+echo 'raciocinio=high' >"$AGENTES_CODEX_CONFIG"
+"$S/tarefa.sh" codex "$proj" heur-config --reservar docs/heur-config "migração
+CRIAR docs/heur-config/a.txt" >/dev/null
+espera heur-config
+checa "codex.env vence a heurística" grep -q 'model_reasoning_effort="high"' "$CODEX_ARGS_LOG"
+: >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" heur-low --raciocinio low --reservar docs/heur-low "migração
+CRIAR docs/heur-low/a.txt" >/dev/null
+espera heur-low
+checa "low pedido vence config e heurística" grep -q 'model_reasoning_effort="low"' "$CODEX_ARGS_LOG"
+checa "registra low pedido" test "$(campo heur-low raciocinio)" = low
+: >"$CODEX_ARGS_LOG"
+"$S/gerente-config.sh" "$proj" codex medium >/dev/null
+"$S/tarefa.sh" codex "$proj" heur-fixo --raciocinio low --reservar docs/heur-fixo "migração
+CRIAR docs/heur-fixo/a.txt" >/dev/null
+espera heur-fixo
+checa "fixo vence opção, config e heurística" grep -q 'model_reasoning_effort="medium"' "$CODEX_ARGS_LOG"
+checa "registra fixo do gerente" test "$(campo heur-fixo raciocinio)" = medium
+"$S/gerente-config.sh" "$proj" codex auto >/dev/null
+: >"$AGENTES_CODEX_CONFIG"; : >"$CODEX_ARGS_LOG"
+"$S/tarefa.sh" codex "$proj" heur-migracao --continuar 'CRIAR docs/heur-migracao/b.txt' >/dev/null
+espera heur-migracao
+checa "continuar sem nível reutiliza xhigh do registro" grep -q 'model_reasoning_effort="xhigh"' "$CODEX_ARGS_LOG"
+checa "continuar mantém o nível registrado" test "$(campo heur-migracao raciocinio)" = xhigh
+checa "decisão da continuação mantém o nível anterior" jq -e \
+  'select(.nome=="heur-migracao" and .continuacao=="sim" and .nivel=="xhigh" and .nivel_anterior=="xhigh")' \
+  "$proj/.git/agentes/decisoes.jsonl"
+"$S/tarefa.sh" codex "$proj" heur-motivo --motivo 'escolha do gerente' --reservar docs/heur-motivo \
+  'CRIAR docs/heur-motivo/a.txt' >/dev/null
+espera heur-motivo
+checa "heurística preserva motivo explícito" jq -e \
+  'select(.nome=="heur-motivo" and .nivel=="medium" and .motivo=="escolha do gerente")' "$proj/.git/agentes/decisoes.jsonl"
 unset CODEX_ARGS_LOG
 
 echo "continuar e briefing"

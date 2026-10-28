@@ -10,7 +10,7 @@ Você (Claude) é o gerente deste projeto. Você divide o trabalho, faz parte de
 
 Se o Gemini devolver um resultado fraco, passe a tarefa ao Codex.
 
-O Codex não ajusta o raciocínio sozinho: sem indicação ele usa o do `~/.codex/config.toml`. O subagente `codex` escolhe `--raciocinio medium|high|xhigh` pela dificuldade da tarefa. Se você quiser outro nível ou um modelo específico, diga no pedido ao subagente (`--raciocinio`, `--modelo`).
+O subagente `codex` escolhe `--raciocinio medium|high|xhigh` pela dificuldade da tarefa. Se você quiser outro nível ou um modelo específico, diga no pedido ao subagente (`--raciocinio`, `--modelo`).
 
 ## Distribuição padrão
 
@@ -30,6 +30,8 @@ Todo pedido do usuário passa por você primeiro. Não faça tudo sozinho: class
 | Comum | funcionalidade ou bug dentro de um módulo, ajuste de texto ou configuração | `medium` |
 | Difícil | vários arquivos, refatoração, bug difícil de achar | `high` |
 | Crítica | arquitetura, concorrência, segurança, migração de dados, ou o `high` falhou | `xhigh` |
+
+Sem nível indicado ou configurado, o `tarefa.sh` calcula uma heurística para o Codex: termos críticos levam a `xhigh`; quatro ou mais reservas, refatoração, vários arquivos ou bug difícil levam a `high`; os demais pedidos usam `medium`. Em `--continuar`, reaproveita o nível do registro. O gerente pode sobrescrever com `--raciocinio`; o nível fixo escolhido em `/gerente` vence todas essas escolhas.
 
    - **Codex sol** (`--raciocinio medium|high|xhigh`): código de escopo fechado, principalmente quando pode correr em paralelo.
    - **Subagente Claude Sonnet** (`Agent` com `model: "sonnet"` e `effort`): documentação e texto, revisão, e o que depende do contexto desta conversa.
